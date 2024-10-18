@@ -18,6 +18,14 @@ const asteroidSvg = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/sv
   <circle cx="60" cy="60" r="6" fill="#A0522D"/>
 </svg>`;
 
+const ufoSvg = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="50" cy="50" rx="40" ry="15" fill="#808080" />
+  <path d="M30 50 Q50 20 70 50" fill="#a0a0a0" stroke="#606060" strokeWidth="2" />
+  <circle cx="35" cy="50" r="3" fill="#ffff00" />
+  <circle cx="50" cy="50" r="3" fill="#00ff00" />
+  <circle cx="65" cy="50" r="3" fill="#ff00ff" />
+</svg>`;
+
 const bulletSvg = `<svg viewBox="0 0 20 40" xmlns="http://www.w3.org/2000/svg">
   <path d="M10 0 L20 40 L0 40 Z" fill="#ff0000"/>
 </svg>`;
@@ -60,15 +68,23 @@ class Spaceship extends GameObject {
   }
 }
 
-class Asteroid extends GameObject {
+class Target extends GameObject {
   scale: number;
+  type: "asteroid" | "ufo";
 
-  constructor(x: number, y: number, speed: number, scale: number) {
-    super(x, y, Math.random() * 20 + 10, speed);
+  constructor(
+    x: number,
+    y: number,
+    speed: number,
+    scale: number,
+    type: "asteroid" | "ufo"
+  ) {
+    super(x, y, type === "asteroid" ? Math.random() * 20 + 10 : 20, speed);
     const angle = Math.random() * Math.PI * 2;
     this.dx = Math.cos(angle) * this.speed;
     this.dy = Math.sin(angle) * this.speed;
     this.scale = scale;
+    this.type = type;
   }
 }
 
@@ -106,17 +122,18 @@ export default function EnhancedAsteroidGame() {
     const CANVAS_HEIGHT = canvas.height;
 
     let spaceship = new Spaceship(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 3, 1);
-    let asteroids: Asteroid[] = [];
+    let targets: Target[] = [];
     let lasers: Laser[] = [];
 
-    // Create initial asteroids
+    // Create initial targets
     for (let i = 0; i < 5; i++) {
-      asteroids.push(
-        new Asteroid(
+      targets.push(
+        new Target(
           Math.random() * CANVAS_WIDTH,
           Math.random() * CANVAS_HEIGHT,
           2,
-          1
+          1,
+          Math.random() < 0.5 ? "asteroid" : "ufo"
         )
       );
     }
@@ -126,6 +143,8 @@ export default function EnhancedAsteroidGame() {
     tankImg.src = `data:image/svg+xml;base64,${btoa(tankSvg)}`;
     const asteroidImg = new Image();
     asteroidImg.src = `data:image/svg+xml;base64,${btoa(asteroidSvg)}`;
+    const ufoImg = new Image();
+    ufoImg.src = `data:image/svg+xml;base64,${btoa(ufoSvg)}`;
     const bulletImg = new Image();
     bulletImg.src = `data:image/svg+xml;base64,${btoa(bulletSvg)}`;
 
@@ -175,8 +194,8 @@ export default function EnhancedAsteroidGame() {
       spaceship.y = (spaceship.y + CANVAS_HEIGHT) % CANVAS_HEIGHT;
     }
 
-    function createAsteroid() {
-      const safeDistance = 100; // Minimum distance from spaceship
+    function createTarget() {
+      const safeDistance = 100;
       let x = 0,
         y = 0;
       let isValidPosition = false;
@@ -212,23 +231,20 @@ export default function EnhancedAsteroidGame() {
         }
       }
 
-      return new Asteroid(x, y, 2, 1);
+      return new Target(x, y, 2, 1, Math.random() < 0.5 ? "asteroid" : "ufo");
     }
 
     function checkCollisions() {
-      // Check laser-asteroid collisions
+      // Check laser-target collisions
       for (let i = lasers.length - 1; i >= 0; i--) {
-        for (let j = asteroids.length - 1; j >= 0; j--) {
+        for (let j = targets.length - 1; j >= 0; j--) {
           if (
-            Math.hypot(
-              lasers[i].x - asteroids[j].x,
-              lasers[i].y - asteroids[j].y
-            ) <
-            lasers[i].radius + asteroids[j].radius
+            Math.hypot(lasers[i].x - targets[j].x, lasers[i].y - targets[j].y) <
+            lasers[i].radius + targets[j].radius
           ) {
             // Collision detected
             lasers.splice(i, 1);
-            asteroids.splice(j, 1);
+            targets.splice(j, 1);
             scoreRef.current += 10;
             setScore(scoreRef.current);
             break;
@@ -236,14 +252,11 @@ export default function EnhancedAsteroidGame() {
         }
       }
 
-      // Check spaceship-asteroid collisions
-      for (let i = asteroids.length - 1; i >= 0; i--) {
+      // Check spaceship-target collisions
+      for (let i = targets.length - 1; i >= 0; i--) {
         if (
-          Math.hypot(
-            spaceship.x - asteroids[i].x,
-            spaceship.y - asteroids[i].y
-          ) <
-          spaceship.radius + asteroids[i].radius
+          Math.hypot(spaceship.x - targets[i].x, spaceship.y - targets[i].y) <
+          spaceship.radius + targets[i].radius
         ) {
           // Game over
           setGameOver(true);
@@ -262,7 +275,7 @@ export default function EnhancedAsteroidGame() {
       // Draw spaceship
       ctx.save();
       ctx.translate(spaceship.x, spaceship.y);
-      ctx.rotate(spaceship.angle + Math.PI / 2); // Adjust rotation to match SVG orientation
+      ctx.rotate(spaceship.angle + Math.PI / 2);
       ctx.drawImage(
         tankImg,
         -spaceship.radius,
@@ -272,32 +285,33 @@ export default function EnhancedAsteroidGame() {
       );
       ctx.restore();
 
-      // Update and draw asteroids
-      for (let i = asteroids.length - 1; i >= 0; i--) {
-        const asteroid = asteroids[i];
-        asteroid.move();
+      // Update and draw targets
+      for (let i = targets.length - 1; i >= 0; i--) {
+        const target = targets[i];
+        target.move();
+        const img = target.type === "asteroid" ? asteroidImg : ufoImg;
         ctx.drawImage(
-          asteroidImg,
-          asteroid.x - asteroid.radius,
-          asteroid.y - asteroid.radius,
-          asteroid.radius * 2,
-          asteroid.radius * 2
+          img,
+          target.x - target.radius,
+          target.y - target.radius,
+          target.radius * 2,
+          target.radius * 2
         );
 
-        // Remove asteroids that are off-screen
+        // Remove targets that are off-screen
         if (
-          asteroid.x < -50 ||
-          asteroid.x > CANVAS_WIDTH + 50 ||
-          asteroid.y < -50 ||
-          asteroid.y > CANVAS_HEIGHT + 50
+          target.x < -50 ||
+          target.x > CANVAS_WIDTH + 50 ||
+          target.y < -50 ||
+          target.y > CANVAS_HEIGHT + 50
         ) {
-          asteroids.splice(i, 1);
+          targets.splice(i, 1);
         }
       }
 
-      // Add new asteroids if needed
-      while (asteroids.length < 5) {
-        asteroids.push(createAsteroid());
+      // Add new targets if needed
+      while (targets.length < 5) {
+        targets.push(createTarget());
       }
 
       // Update and draw lasers
@@ -332,6 +346,7 @@ export default function EnhancedAsteroidGame() {
     Promise.all([
       new Promise((resolve) => (tankImg.onload = resolve)),
       new Promise((resolve) => (asteroidImg.onload = resolve)),
+      new Promise((resolve) => (ufoImg.onload = resolve)),
       new Promise((resolve) => (bulletImg.onload = resolve)),
     ]).then(() => {
       gameLoop();
