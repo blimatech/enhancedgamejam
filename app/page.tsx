@@ -118,6 +118,10 @@ export default function EnhancedAsteroidGame() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Set canvas size to full screen
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
     const CANVAS_WIDTH = canvas.width;
     const CANVAS_HEIGHT = canvas.height;
 
@@ -195,7 +199,7 @@ export default function EnhancedAsteroidGame() {
     }
 
     function createTarget() {
-      const safeDistance = 100;
+      const safeDistance = 150; // Increased safe distance from the spaceship
       let x = 0,
         y = 0;
       let isValidPosition = false;
@@ -309,8 +313,9 @@ export default function EnhancedAsteroidGame() {
         }
       }
 
-      // Add new targets if needed
-      while (targets.length < 5) {
+      // Add new targets if needed, with a delay
+      if (targets.length < 5 && Math.random() < 0.02) {
+        // 2% chance each frame
         targets.push(createTarget());
       }
 
@@ -339,6 +344,12 @@ export default function EnhancedAsteroidGame() {
 
       checkCollisions();
 
+      // Draw score
+      ctx.fillStyle = "white";
+      ctx.font = "24px Arial";
+      ctx.textAlign = "left";
+      ctx.fillText(`Score: ${scoreRef.current}`, 20, 40);
+
       requestAnimationFrame(gameLoop);
     }
 
@@ -352,32 +363,28 @@ export default function EnhancedAsteroidGame() {
       gameLoop();
     });
 
+    // Add window resize event listener
+    function handleResize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener("resize", handleResize);
+
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("resize", handleResize);
     };
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-900 p-4 text-white">
-      <h1 className="mb-4 text-4xl font-bold">Space Defender</h1>
-      <canvas
-        ref={canvasRef}
-        width={800}
-        height={600}
-        className="rounded-lg border-4 border-gray-700 shadow-lg"
-      />
-      <div className="mt-4 flex w-full max-w-md justify-between">
-        <div className="text-xl">Score: {score}</div>
-      </div>
-      <div className="mt-4 text-sm text-gray-400">
-        Use arrow keys to move and rotate, spacebar to shoot
-      </div>
+    <div className="h-screen w-screen overflow-hidden">
+      <canvas ref={canvasRef} className="h-full w-full" />
       {gameOver && (
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75">
           <div className="text-center">
-            <h2 className="mb-4 text-4xl font-bold">Game Over</h2>
-            <p className="mb-4 text-2xl">Final Score: {score}</p>
+            <h2 className="mb-4 text-4xl font-bold text-white">Game Over</h2>
+            <p className="mb-4 text-2xl text-white">Final Score: {score}</p>
             <Button
               onClick={() => window.location.reload()}
               className="rounded bg-blue-500 px-4 py-2 text-white"
