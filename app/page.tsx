@@ -130,11 +130,16 @@ export default function EnhancedAsteroidGame() {
         target.radius = 35; // Same fixed size for both asteroid and UFO
       }
 
+      // Reduce speed of targets
+      target.dx *= 0.3; // Reduce horizontal speed to 30% of original
+      target.dy *= 0.3; // Reduce vertical speed to 30% of original
+
       return target;
     };
 
-    // Use the new function when creating initial targets
+    // Increase initial targets to 3
     for (let i = 0; i < 3; i++) {
+      // Changed from 1 to 3
       const newTarget = createLevelAdjustedTarget(
         CANVAS_WIDTH,
         CANVAS_HEIGHT,
@@ -395,8 +400,9 @@ export default function EnhancedAsteroidGame() {
           );
         });
 
-      // Reduce the rate of adding new targets
-      if (gameStateRef.current.targets.length < 3 && Math.random() < 0.01) {
+      // Increase the maximum number of targets and slightly increase spawn rate
+      if (gameStateRef.current.targets.length < 5 && Math.random() < 0.005) {
+        // Changed from 1 to 5 and 0.002 to 0.005
         const newTarget = createLevelAdjustedTarget(
           CANVAS_WIDTH,
           CANVAS_HEIGHT,
