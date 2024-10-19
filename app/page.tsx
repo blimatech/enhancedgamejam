@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Scoreboard from "@/components/Scoreboard";
 import asteroidImageSrc from "/assets/images/Asteroid.png";
+import backgroundImageSrc from "/assets/images/background.jpg";
 import bulletImageSrc from "/assets/images/Bullet.png";
 import spaceshipImageSrc from "/assets/images/Spaceship.png";
 import ufoImageSrc from "/assets/images/UFO.png";
@@ -123,6 +124,8 @@ export default function EnhancedAsteroidGame() {
     bulletImg.src = bulletImageSrc;
     const ufoImg = new window.Image();
     ufoImg.src = ufoImageSrc;
+    const backgroundImg = new window.Image();
+    backgroundImg.src = backgroundImageSrc;
 
     console.log("Image sources:", {
       spaceship: spaceshipImageSrc,
@@ -253,8 +256,8 @@ export default function EnhancedAsteroidGame() {
 
       console.log("Game loop running");
 
-      ctx.fillStyle = "black";
-      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      // Draw background to cover the entire canvas
+      ctx.drawImage(backgroundImg, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
       updateSpaceship();
 
@@ -332,6 +335,7 @@ export default function EnhancedAsteroidGame() {
       new Promise((resolve) => (asteroidImg.onload = resolve)),
       new Promise((resolve) => (bulletImg.onload = resolve)),
       new Promise((resolve) => (ufoImg.onload = resolve)),
+      new Promise((resolve) => (backgroundImg.onload = resolve)),
     ])
       .then(() => {
         console.log("All images loaded");
