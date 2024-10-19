@@ -104,8 +104,8 @@ export function createNewTarget(
   } while (Math.hypot(x - spaceshipX, y - spaceshipY) < safeDistance);
 
   const angle = Math.random() * Math.PI * 2;
-  const baseSpeed = 1 + level * 0.5;
-  const speed = baseSpeed + Math.random() * 2;
+  const baseSpeed = 0.5 + level * 0.15; // Reduced level multiplier from 0.25 to 0.15
+  const speed = baseSpeed + Math.random() * 0.5; // Further reduced random speed factor
   const type = Math.random() < 0.7 ? "asteroid" : "ufo";
 
   return {

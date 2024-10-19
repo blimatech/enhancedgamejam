@@ -8,7 +8,7 @@ type UFOProps = {
 const UFO: React.FC<UFOProps> = ({ x, y }) => {
   return (
     <div
-      className="absolute w-10 h-10 bg-purple-500 rounded-full"
+      className="absolute h-10 w-10 rounded-full bg-purple-500"
       style={{ left: x, top: y }}
     />
   );

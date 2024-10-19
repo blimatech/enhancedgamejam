@@ -383,7 +383,7 @@ export default function EnhancedAsteroidGame() {
     // Add level progression based on time
     const levelInterval = setInterval(() => {
       setLevel((prevLevel) => Math.min(prevLevel + 1, 3));
-    }, 10000); // Increase level every 10 seconds, up to level 3
+    }, 5000); // Increase level every 5 seconds, up to level 3
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
