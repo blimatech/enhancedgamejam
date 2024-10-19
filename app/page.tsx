@@ -92,7 +92,10 @@ export default function EnhancedAsteroidGame() {
     laserSoundRef.current = new Audio("/sounds/LaserShootMusic.mp3");
 
     function handleKeyDown(e: KeyboardEvent) {
-      gameStateRef.current.keys[e.key] = true;
+      // Ignore 'M' key in the game loop
+      if (e.key !== "m" && e.key !== "M") {
+        gameStateRef.current.keys[e.key] = true;
+      }
 
       // Shoot laser on spacebar press
       if (e.key === " " && !gameOver) {
@@ -101,7 +104,10 @@ export default function EnhancedAsteroidGame() {
     }
 
     function handleKeyUp(e: KeyboardEvent) {
-      gameStateRef.current.keys[e.key] = false;
+      // Ignore 'M' key in the game loop
+      if (e.key !== "m" && e.key !== "M") {
+        gameStateRef.current.keys[e.key] = false;
+      }
     }
 
     function shootLaser() {
