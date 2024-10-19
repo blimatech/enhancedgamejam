@@ -13,6 +13,7 @@ import {
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
 import Scoreboard from "@/app/components/Scoreboard";
 
 export default function EnhancedAsteroidGame() {
@@ -29,6 +30,15 @@ export default function EnhancedAsteroidGame() {
   const [isMuted, setIsMuted] = useState(false);
   const [timer, setTimer] = useState(0);
   const [level, setLevel] = useState(1);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const [customShootSound, setCustomShootSound] = useState<AudioBuffer | null>(
+    null
+  );
+  const [backgroundMusic, setBackgroundMusic] =
+    useState<HTMLAudioElement | null>(null);
+  const [shootText, setShootText] = useState("");
 
   // Create a memoized function to get the current image based on level
   const getCurrentImage = useCallback(
@@ -196,20 +206,20 @@ export default function EnhancedAsteroidGame() {
     laserSoundRef.current = new Audio("/sounds/LaserShootMusic.mp3");
 
     function handleKeyDown(e: KeyboardEvent) {
-      // Ignore 'M' key in the game loop
-      if (e.key !== "m" && e.key !== "M") {
+      // Ignore 'M' key and spacebar in the game loop when recording
+      if ((e.key !== "m" && e.key !== "M" && e.key !== " ") || !isRecording) {
         gameStateRef.current.keys[e.key] = true;
       }
 
-      // Shoot laser on spacebar press
-      if (e.key === " " && !gameOver) {
+      // Shoot laser on spacebar press only when not recording
+      if (e.key === " " && !gameOver && !isRecording) {
         shootLaser();
       }
     }
 
     function handleKeyUp(e: KeyboardEvent) {
-      // Ignore 'M' key in the game loop
-      if (e.key !== "m" && e.key !== "M") {
+      // Ignore 'M' key and spacebar in the game loop when recording
+      if ((e.key !== "m" && e.key !== "M" && e.key !== " ") || !isRecording) {
         gameStateRef.current.keys[e.key] = false;
       }
     }
@@ -227,9 +237,15 @@ export default function EnhancedAsteroidGame() {
       );
       gameStateRef.current.lasers.push(laser);
 
-      // Play laser sound only if not muted
-      if (laserSoundRef.current && !isMuted) {
-        laserSoundRef.current.currentTime = 0; // Reset the audio to the beginning
+      if (customShootSound && !isMuted) {
+        const audioContext = new (window.AudioContext ||
+          (window as any).webkitAudioContext)();
+        const source = audioContext.createBufferSource();
+        source.buffer = customShootSound;
+        source.connect(audioContext.destination);
+        source.start();
+      } else if (laserSoundRef.current && !isMuted) {
+        laserSoundRef.current.currentTime = 0;
         laserSoundRef.current
           .play()
           .catch((error) => console.error("Error playing laser sound:", error));
@@ -489,6 +505,18 @@ export default function EnhancedAsteroidGame() {
       setLevel((prevLevel) => Math.min(prevLevel + 1, 4)); // Increase max level to 4
     }, 1000); // Increase level every 5 seconds, up to level 4
 
+    // Initialize background music
+    const bgMusic = new Audio("/sounds/BackgroundMusic.mp3"); // Corrected file name
+    bgMusic.loop = true;
+    setBackgroundMusic(bgMusic);
+    if (!isMuted) {
+      bgMusic
+        .play()
+        .catch((error) =>
+          console.error("Error playing background music:", error)
+        );
+    }
+
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
@@ -503,6 +531,10 @@ export default function EnhancedAsteroidGame() {
         laserSoundRef.current.pause();
         laserSoundRef.current = null;
       }
+      if (backgroundMusic) {
+        backgroundMusic.pause();
+        backgroundMusic.currentTime = 0;
+      }
     };
   }, [gameOver, isMuted, level, getCurrentImage]);
 
@@ -513,6 +545,132 @@ export default function EnhancedAsteroidGame() {
     return `${minutes.toString().padStart(2, "0")}:${remainingSeconds
       .toString()
       .padStart(2, "0")}`;
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: "audio/webm",
+      });
+      mediaRecorderRef.current = mediaRecorder;
+
+      const audioChunks: BlobPart[] = [];
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunks.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+        const audioContext = new (window.AudioContext ||
+          (window as any).webkitAudioContext)();
+        const audioBuffer = await audioContext.decodeAudioData(
+          await audioBlob.arrayBuffer()
+        );
+        const wavBlob = await audioBufferToWav(audioBuffer);
+        setAudioBlob(wavBlob);
+        processAudio(wavBlob);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+
+      // Stop recording after 5 seconds
+      setTimeout(() => {
+        if (
+          mediaRecorderRef.current &&
+          mediaRecorderRef.current.state === "recording"
+        ) {
+          mediaRecorderRef.current.stop();
+          setIsRecording(false);
+        }
+      }, 5000);
+    } catch (error) {
+      console.error("Error starting recording:", error);
+    }
+  };
+
+  const stopRecording = () => {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state === "recording"
+    ) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const processAudio = async (audioBlob: Blob) => {
+    const formData = new FormData();
+    formData.append("audio", audioBlob, "recording.wav");
+
+    try {
+      const response = await fetch("/api/process-audio", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        const audioBuffer = await response.arrayBuffer();
+        const context = new AudioContext();
+        const decodedAudio = await context.decodeAudioData(audioBuffer);
+        setCustomShootSound(decodedAudio);
+
+        // Stop background music
+        if (backgroundMusic) {
+          backgroundMusic.pause();
+          backgroundMusic.currentTime = 0;
+        }
+
+        // Remove previous shooting sound
+        if (laserSoundRef.current) {
+          laserSoundRef.current = null;
+        }
+      } else {
+        console.error("Error processing audio:", await response.text());
+      }
+    } catch (error) {
+      console.error("Error sending audio to server:", error);
+    }
+  };
+
+  const processTextToSound = async () => {
+    if (!shootText.trim()) {
+      console.error("Please enter some text for the shooting sound.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/process-text", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text: shootText }),
+      });
+
+      if (response.ok) {
+        const audioBuffer = await response.arrayBuffer();
+        const context = new AudioContext();
+        const decodedAudio = await context.decodeAudioData(audioBuffer);
+        setCustomShootSound(decodedAudio);
+
+        // Stop background music
+        if (backgroundMusic) {
+          backgroundMusic.pause();
+          backgroundMusic.currentTime = 0;
+        }
+
+        // Remove previous shooting sound
+        if (laserSoundRef.current) {
+          laserSoundRef.current = null;
+        }
+      } else {
+        console.error("Error processing text:", await response.text());
+      }
+    } catch (error) {
+      console.error("Error sending text to server:", error);
+    }
   };
 
   return (
@@ -543,6 +701,90 @@ export default function EnhancedAsteroidGame() {
           </div>
         </div>
       )}
+      <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center space-x-2">
+        <Button
+          onClick={isRecording ? stopRecording : startRecording}
+          className={`px-4 py-2 ${isRecording ? "bg-red-500" : "bg-blue-500"}`}
+        >
+          {isRecording ? "Stop Recording" : "Start Recording"}
+        </Button>
+        {audioBlob && (
+          <audio
+            controls
+            src={URL.createObjectURL(audioBlob)}
+            className="ml-4"
+          />
+        )}
+        <Input
+          type="text"
+          value={shootText}
+          onChange={(e) => setShootText(e.target.value)}
+          placeholder="Enter shoot sound text"
+          className="w-48"
+        />
+        <Button onClick={processTextToSound} className="bg-green-500">
+          Set Text Sound
+        </Button>
+      </div>
     </div>
   );
+}
+
+// Add this function at the end of the file
+function audioBufferToWav(buffer: AudioBuffer): Promise<Blob> {
+  const numOfChan = buffer.numberOfChannels;
+  const length = buffer.length * numOfChan * 2 + 44;
+  const outBuffer = new ArrayBuffer(length);
+  const view = new DataView(outBuffer);
+  const channels = [];
+  let sample = 0;
+  let offset = 0;
+  let pos = 0;
+
+  // write WAVE header
+  setUint32(0x46464952); // "RIFF"
+  setUint32(length - 8); // file length - 8
+  setUint32(0x45564157); // "WAVE"
+
+  setUint32(0x20746d66); // "fmt " chunk
+  setUint32(16); // length = 16
+  setUint16(1); // PCM (uncompressed)
+  setUint16(numOfChan);
+  setUint32(buffer.sampleRate);
+  setUint32(buffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+  setUint16(numOfChan * 2); // block-align
+  setUint16(16); // 16-bit (hardcoded in this demo)
+
+  setUint32(0x61746164); // "data" - chunk
+  setUint32(length - pos - 4); // chunk length
+
+  // write interleaved data
+  for (let i = 0; i < buffer.numberOfChannels; i++)
+    channels.push(buffer.getChannelData(i));
+
+  while (pos < length) {
+    for (let i = 0; i < numOfChan; i++) {
+      // interleave channels
+      sample = Math.max(-1, Math.min(1, channels[i][offset])); // clamp
+      sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0; // scale to 16-bit signed int
+      view.setInt16(pos, sample, true); // write 16-bit sample
+      pos += 2;
+    }
+    offset++; // next source sample
+  }
+
+  // create Blob
+  return new Promise((resolve) => {
+    resolve(new Blob([outBuffer], { type: "audio/wav" }));
+  });
+
+  function setUint16(data: number) {
+    view.setUint16(pos, data, true);
+    pos += 2;
+  }
+
+  function setUint32(data: number) {
+    view.setUint32(pos, data, true);
+    pos += 4;
+  }
 }
