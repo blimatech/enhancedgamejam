@@ -1,93 +1,104 @@
+from flask import Flask, request, send_file
+from flask_cors import CORS
+import sys
 import io
-import torch
-import torchaudio
-from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
-from pydub import AudioSegment
-from fastapi import FastAPI, File, UploadFile, HTTPException, Body
-from fastapi.responses import FileResponse
 import os
-import subprocess
-from gtts import gTTS
-import tempfile
+from dotenv import load_dotenv
+from groq import Groq
+from elevenlabs.client import ElevenLabs
+import logging
+import time
+import traceback
 
-app = FastAPI()
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Set the path to ffmpeg and ffprobe
-ffmpeg_path = subprocess.check_output(['which', 'ffmpeg']).decode().strip()
-ffprobe_path = subprocess.check_output(['which', 'ffprobe']).decode().strip()
+app = Flask(__name__)
+CORS(app)
 
-AudioSegment.converter = ffmpeg_path
-AudioSegment.ffmpeg = ffmpeg_path
-AudioSegment.ffprobe = ffprobe_path
+# Load environment variables
+load_dotenv()
 
-# Load the Wav2Vec2 model and processor
-try:
-    processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
-    model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-base-960h")
-except Exception as e:
-    print(f"Error loading Wav2Vec2 model: {e}")
-    processor = None
-    model = None
+# Get API keys from environment
+groq_api_key = os.getenv("GROQ_API_KEY")
+elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
 
-@app.post("/api/process-audio")
-async def process_audio(audio: UploadFile = File(...)):
-    if not processor or not model:
-        raise HTTPException(status_code=500, detail="Wav2Vec2 model not loaded")
+if not groq_api_key or not elevenlabs_api_key:
+    logger.error("Missing API keys in environment variables")
+    raise ValueError("API keys are not set")
 
+logger.info("API keys loaded successfully")
+
+# Initialize clients
+groq_client = Groq(api_key=groq_api_key)
+elevenlabs_client = ElevenLabs(api_key=elevenlabs_api_key)
+
+logger.info("Clients initialized successfully")
+
+def generate_sound_effect(text, duration_seconds=2.0, prompt_influence=0.3):
+    logger.info(f"Generating sound effect for: '{text}'")
+    start_time = time.time()
+
+    result = elevenlabs_client.text_to_sound_effects.convert(
+        text=text,
+        duration_seconds=duration_seconds,
+        prompt_influence=prompt_influence
+    )
+
+    temp_file = "temp_sound_effect.mp3"
+    with open(temp_file, "wb") as f:
+        for chunk in result:
+            f.write(chunk)
+
+    total_time = (time.time() - start_time) * 1000
+    logger.info(f"Sound effect generated in {total_time:.2f} ms")
+
+    return temp_file
+
+def process_audio(input_file):
     try:
-        # Read the uploaded audio file
-        audio_content = await audio.read()
-        audio_segment = AudioSegment.from_file(io.BytesIO(audio_content), format="wav")
-
-        # Convert audio to the required format
-        audio_segment = audio_segment.set_frame_rate(16000).set_channels(1)
-        audio_array = torch.FloatTensor(audio_segment.get_array_of_samples())
-
-        # Process audio with Wav2Vec2
-        inputs = processor(audio_array, sampling_rate=16000, return_tensors="pt", padding=True)
-        with torch.no_grad():
-            logits = model(inputs.input_values, attention_mask=inputs.attention_mask).logits
-        predicted_ids = torch.argmax(logits, dim=-1)
-        transcription = processor.batch_decode(predicted_ids)[0]
-
-        # Generate a simple tone based on the transcription
-        frequency = sum(ord(c) for c in transcription) % 1000 + 200  # Simple hash to frequency
-        duration = 1000  # 1 second
-        sample_rate = 44100
-        t = torch.arange(0, duration, 1000.0 / sample_rate) / 1000.0
-        audio = 0.5 * torch.sin(2 * torch.pi * frequency * t)
-
-        # Save as MP3
-        output_path = "temp_output.mp3"
-        torchaudio.save(output_path, audio.unsqueeze(0), sample_rate, format="mp3")
-
-        return FileResponse(output_path, media_type="audio/mpeg", filename="shoot_sound.mp3")
-    except Exception as e:
-        print(f"Error processing audio: {e}")
-        raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
-    finally:
-        if os.path.exists("temp_output.mp3"):
-            os.remove("temp_output.mp3")
-
-@app.post("/api/process-text")
-async def process_text(text: str = Body(..., embed=True)):
-    try:
-        # Generate speech from text
-        tts = gTTS(text=text, lang='en')
+        logger.info(f"Processing audio file: {input_file}")
         
-        # Save as MP3
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_file:
-            tts.save(temp_file.name)
-            output_path = temp_file.name
+        # Perform transcription using Groq
+        with open(input_file, "rb") as file:
+            logger.info("Sending file to Groq for transcription")
+            transcription = groq_client.audio.transcriptions.create(
+                file=(input_file, file.read()),
+                model="whisper-large-v3-turbo",
+                response_format="json",
+                language="en",
+                temperature=0.0
+            )
+        logger.info(f"Transcription received: {transcription.text}")
 
-        return FileResponse(output_path, media_type="audio/mpeg", filename="shoot_sound.mp3")
+        # Generate sound effect based on transcription
+        sound_effect_file = generate_sound_effect(transcription.text)
+        logger.info("Sound effect generated")
+
+        return sound_effect_file
     except Exception as e:
-        print(f"Error processing text: {e}")
-        raise HTTPException(status_code=500, detail=f"Error processing text: {str(e)}")
-    finally:
-        if 'output_path' in locals() and os.path.exists(output_path):
-            os.remove(output_path)
+        logger.error(f"Error processing audio: {str(e)}")
+        logger.error("Traceback:")
+        traceback.print_exc()
+        return None
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+if __name__ == '__main__':
+    logger.info("Starting __main__ from process_audio.py")
+    if len(sys.argv) != 2:
+        logger.error("Incorrect number of arguments")
+        print("Usage: python process_audio.py <input_file>")
+        sys.exit(1)
+
+    input_file = sys.argv[1]
+    logger.info(f"Input file: {input_file}")
+
+    sound_effect_file = process_audio(input_file)
+    if sound_effect_file:
+        with open(sound_effect_file, 'rb') as f:
+            sys.stdout.buffer.write(f.read())
+        os.remove(sound_effect_file)  # Clean up the temporary file
+        logger.info("Processing completed successfully")
+    else:
+        logger.error("Processing failed")
+        sys.exit(1)
