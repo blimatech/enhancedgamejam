@@ -53,6 +53,11 @@ export default function EnhancedAsteroidGame() {
         "/images/spaceship2.png",
         "/images/spaceship3.png",
       ];
+      const bulletImages = [
+        "/images/bullet1.png",
+        "/images/bullet2.png",
+        "/images/bullet3.png",
+      ];
 
       switch (type) {
         case "asteroid":
@@ -65,6 +70,8 @@ export default function EnhancedAsteroidGame() {
           ];
         case "starship":
           return starshipImages[Math.min(level - 1, starshipImages.length - 1)];
+        case "bullet":
+          return bulletImages[Math.min(level - 1, bulletImages.length - 1)];
         default:
           return "";
       }
@@ -111,9 +118,9 @@ export default function EnhancedAsteroidGame() {
     // Pre-load images
     const images: { [key: string]: HTMLImageElement } = {};
     const imageSources = {
-      spaceship1: "/images/Spaceship1.png",
-      spaceship2: "/images/Spaceship2.png",
-      spaceship3: "/images/Spaceship3.png",
+      spaceship1: "/images/spaceship1.png",
+      spaceship2: "/images/spaceship2.png",
+      spaceship3: "/images/spaceship3.png",
       asteroid1: "/images/Asteroid1.png",
       asteroid2: "/images/Asteroid2.png",
       asteroid3: "/images/Asteroid3.png",
@@ -123,7 +130,9 @@ export default function EnhancedAsteroidGame() {
       background1: "/images/background1.jpg",
       background2: "/images/background2.jpg",
       background3: "/images/background3.jpg",
-      bullet: "/images/bullet.png",
+      bullet1: "/images/bullet1.png",
+      bullet2: "/images/bullet2.png",
+      bullet3: "/images/bullet3.png",
     };
 
     const loadImage = (key: string, src: string): Promise<void> => {
@@ -359,12 +368,13 @@ export default function EnhancedAsteroidGame() {
       gameStateRef.current.lasers = gameStateRef.current.lasers
         .map((laser) => {
           laser = moveGameObject(laser);
-          if (images.bullet) {
+          const bulletImage = images[`bullet${level}`];
+          if (bulletImage) {
             ctx.save();
             ctx.translate(laser.x, laser.y);
             ctx.rotate(Math.atan2(laser.dy, laser.dx) + Math.PI / 2); // Rotated by 90 degrees
             ctx.drawImage(
-              images.bullet,
+              bulletImage,
               -laser.radius * 3, // Tripled the size
               -laser.radius * 3, // Tripled the size
               laser.radius * 6, // Tripled the size
