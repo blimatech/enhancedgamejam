@@ -3,27 +3,18 @@
 import React, { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
+import Scoreboard from "@/components/Scoreboard";
+import asteroidImageSrc from "@/assets/images/Asteroid.png";
+import bulletImageSrc from "@/assets/images/Bullet.png";
+import spaceshipImageSrc from "@/assets/images/Spaceship.png";
+import ufoImageSrc from "@/assets/images/UFO.png";
 
 // Import SVG content as strings
-const tankSvg = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect x="25" y="40" width="50" height="30" fill="#4a4a4a"/>
-  <rect x="10" y="70" width="80" height="15" fill="#4a4a4a"/>
-  <rect x="45" y="20" width="10" height="30" fill="#4a4a4a"/>
-  <circle cx="50" cy="55" r="15" fill="#6a6a6a"/>
-</svg>`;
-
 const asteroidSvg = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
   <path d="M50 10 L70 30 L90 50 L70 70 L50 90 L30 70 L10 50 L30 30 Z" fill="#8B4513"/>
   <circle cx="40" cy="40" r="8" fill="#A0522D"/>
   <circle cx="60" cy="60" r="6" fill="#A0522D"/>
-</svg>`;
-
-const ufoSvg = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="50" cy="50" rx="40" ry="15" fill="#808080" />
-  <path d="M30 50 Q50 20 70 50" fill="#a0a0a0" stroke="#606060" strokeWidth="2" />
-  <circle cx="35" cy="50" r="3" fill="#ffff00" />
-  <circle cx="50" cy="50" r="3" fill="#00ff00" />
-  <circle cx="65" cy="50" r="3" fill="#ff00ff" />
 </svg>`;
 
 const bulletSvg = `<svg viewBox="0 0 20 40" xmlns="http://www.w3.org/2000/svg">
@@ -58,7 +49,7 @@ class Spaceship extends GameObject {
   scale: number;
 
   constructor(x: number, y: number, speed: number, scale: number = 1) {
-    super(x, y, 20 * scale, speed);
+    super(x, y, 30 * scale, speed); // Increased radius from 20 to 30
     this.angle = -Math.PI / 2; // Start facing upwards
     this.scale = scale;
   }
@@ -79,7 +70,8 @@ class Target extends GameObject {
     scale: number,
     type: "asteroid" | "ufo"
   ) {
-    super(x, y, type === "asteroid" ? Math.random() * 20 + 10 : 20, speed);
+    // Slightly reduce the size for UFOs
+    super(x, y, type === "asteroid" ? Math.random() * 30 + 20 : 25, speed);
     const angle = Math.random() * Math.PI * 2;
     this.dx = Math.cos(angle) * this.speed;
     this.dy = Math.sin(angle) * this.speed;
@@ -89,19 +81,10 @@ class Target extends GameObject {
 }
 
 class Laser extends GameObject {
-  scale: number;
-
-  constructor(
-    x: number,
-    y: number,
-    angle: number,
-    speed: number,
-    scale: number
-  ) {
-    super(x, y, 5, speed);
+  constructor(x: number, y: number, angle: number, speed: number) {
+    super(x, y, 3, speed);
     this.dx = Math.cos(angle) * this.speed;
     this.dy = Math.sin(angle) * this.speed;
-    this.scale = scale;
   }
 }
 
@@ -125,7 +108,7 @@ export default function EnhancedAsteroidGame() {
     const CANVAS_WIDTH = canvas.width;
     const CANVAS_HEIGHT = canvas.height;
 
-    let spaceship = new Spaceship(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 3, 1);
+    let spaceship = new Spaceship(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 3, 1.5); // Increased scale from 1 to 1.5
     let targets: Target[] = [];
     let lasers: Laser[] = [];
 
@@ -143,14 +126,14 @@ export default function EnhancedAsteroidGame() {
     }
 
     // Pre-load images
-    const tankImg = new Image();
-    tankImg.src = `data:image/svg+xml;base64,${btoa(tankSvg)}`;
-    const asteroidImg = new Image();
-    asteroidImg.src = `data:image/svg+xml;base64,${btoa(asteroidSvg)}`;
-    const ufoImg = new Image();
-    ufoImg.src = `data:image/svg+xml;base64,${btoa(ufoSvg)}`;
-    const bulletImg = new Image();
-    bulletImg.src = `data:image/svg+xml;base64,${btoa(bulletSvg)}`;
+    const spaceshipImg = new window.Image();
+    spaceshipImg.src = spaceshipImageSrc;
+    const asteroidImg = new window.Image();
+    asteroidImg.src = asteroidImageSrc;
+    const bulletImg = new window.Image();
+    bulletImg.src = bulletImageSrc;
+    const ufoImg = new window.Image();
+    ufoImg.src = ufoImageSrc;
 
     // Keyboard state
     const keys: { [key: string]: boolean } = {};
@@ -164,14 +147,13 @@ export default function EnhancedAsteroidGame() {
       if (e.key === " ") {
         // Shoot laser
         const angle = spaceship.angle;
-        const laserSpeed = 5;
-        const laserDistance = spaceship.radius; // Distance from center to front of spaceship
+        const laserSpeed = 8; // Increased from 5 to 8
+        const laserDistance = spaceship.radius + 5; // Increased distance
         const laser = new Laser(
           spaceship.x + Math.cos(angle) * laserDistance,
           spaceship.y + Math.sin(angle) * laserDistance,
           angle,
-          laserSpeed,
-          0.5
+          laserSpeed
         );
         lasers.push(laser);
       }
@@ -199,7 +181,7 @@ export default function EnhancedAsteroidGame() {
     }
 
     function createTarget() {
-      const safeDistance = 150; // Increased safe distance from the spaceship
+      const safeDistance = 350; // Increased from 250 to 350
       let x = 0,
         y = 0;
       let isValidPosition = false;
@@ -209,18 +191,18 @@ export default function EnhancedAsteroidGame() {
         switch (side) {
           case 0: // top
             x = Math.random() * CANVAS_WIDTH;
-            y = -30;
+            y = -50; // Increased from -30 to -50
             break;
           case 1: // right
-            x = CANVAS_WIDTH + 30;
+            x = CANVAS_WIDTH + 50; // Increased from +30 to +50
             y = Math.random() * CANVAS_HEIGHT;
             break;
           case 2: // bottom
             x = Math.random() * CANVAS_WIDTH;
-            y = CANVAS_HEIGHT + 30;
+            y = CANVAS_HEIGHT + 50; // Increased from +30 to +50
             break;
           case 3: // left
-            x = -30;
+            x = -50; // Increased from -30 to -50
             y = Math.random() * CANVAS_HEIGHT;
             break;
         }
@@ -235,7 +217,10 @@ export default function EnhancedAsteroidGame() {
         }
       }
 
-      return new Target(x, y, 2, 1, Math.random() < 0.5 ? "asteroid" : "ufo");
+      // Slightly reduce the scale for UFOs
+      const scale = Math.random() < 0.5 ? 1.5 : 1; // 50% chance of larger targets
+      const type = Math.random() < 0.5 ? "asteroid" : "ufo";
+      return new Target(x, y, 2, type === "ufo" ? scale * 1.25 : scale, type);
     }
 
     function checkCollisions() {
@@ -249,8 +234,7 @@ export default function EnhancedAsteroidGame() {
             // Collision detected
             lasers.splice(i, 1);
             targets.splice(j, 1);
-            scoreRef.current += 10;
-            setScore(scoreRef.current);
+            setScore((prevScore) => prevScore + 10);
             break;
           }
         }
@@ -281,7 +265,7 @@ export default function EnhancedAsteroidGame() {
       ctx.translate(spaceship.x, spaceship.y);
       ctx.rotate(spaceship.angle + Math.PI / 2);
       ctx.drawImage(
-        tankImg,
+        spaceshipImg,
         -spaceship.radius,
         -spaceship.radius,
         spaceship.radius * 2,
@@ -294,12 +278,14 @@ export default function EnhancedAsteroidGame() {
         const target = targets[i];
         target.move();
         const img = target.type === "asteroid" ? asteroidImg : ufoImg;
+        const drawRadius =
+          target.type === "ufo" ? target.radius * 1.25 : target.radius;
         ctx.drawImage(
           img,
-          target.x - target.radius,
-          target.y - target.radius,
-          target.radius * 2,
-          target.radius * 2
+          target.x - drawRadius,
+          target.y - drawRadius,
+          drawRadius * 2,
+          drawRadius * 2
         );
 
         // Remove targets that are off-screen
@@ -323,13 +309,10 @@ export default function EnhancedAsteroidGame() {
       for (let i = lasers.length - 1; i >= 0; i--) {
         const laser = lasers[i];
         laser.move();
-        ctx.drawImage(
-          bulletImg,
-          laser.x - laser.radius,
-          laser.y - laser.radius,
-          laser.radius * 2,
-          laser.radius * 2
-        );
+        ctx.fillStyle = "yellow"; // Changed from using an image to a simple yellow circle
+        ctx.beginPath();
+        ctx.arc(laser.x, laser.y, laser.radius, 0, Math.PI * 2);
+        ctx.fill();
 
         // Remove lasers that are off-screen
         if (
@@ -344,29 +327,25 @@ export default function EnhancedAsteroidGame() {
 
       checkCollisions();
 
-      // Draw score
-      ctx.fillStyle = "white";
-      ctx.font = "24px Arial";
-      ctx.textAlign = "left";
-      ctx.fillText(`Score: ${scoreRef.current}`, 20, 40);
-
       requestAnimationFrame(gameLoop);
     }
 
     // Start the game loop once images are loaded
     Promise.all([
-      new Promise((resolve) => (tankImg.onload = resolve)),
+      new Promise((resolve) => (spaceshipImg.onload = resolve)),
       new Promise((resolve) => (asteroidImg.onload = resolve)),
-      new Promise((resolve) => (ufoImg.onload = resolve)),
       new Promise((resolve) => (bulletImg.onload = resolve)),
+      new Promise((resolve) => (ufoImg.onload = resolve)),
     ]).then(() => {
       gameLoop();
     });
 
     // Add window resize event listener
     function handleResize() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      if (canvas) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
     }
     window.addEventListener("resize", handleResize);
 
@@ -380,14 +359,17 @@ export default function EnhancedAsteroidGame() {
   return (
     <div className="h-screen w-screen overflow-hidden">
       <canvas ref={canvasRef} className="h-full w-full" />
+      <Scoreboard score={score} />
       {gameOver && (
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75">
           <div className="text-center">
-            <h2 className="mb-4 text-4xl font-bold text-white">Game Over</h2>
-            <p className="mb-4 text-2xl text-white">Final Score: {score}</p>
+            <h2 className="mb-4 text-6xl font-bold text-white">Game Over</h2>
+            <p className="mb-4 text-4xl text-yellow-400">
+              Final Score: {score}
+            </p>
             <Button
               onClick={() => window.location.reload()}
-              className="rounded bg-blue-500 px-4 py-2 text-white"
+              className="rounded bg-blue-500 px-6 py-3 text-xl text-white transition-colors hover:bg-blue-600"
             >
               Play Again
             </Button>
