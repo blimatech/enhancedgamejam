@@ -132,3 +132,53 @@ export const createNewTarget = (
   const type = Math.random() < 0.5 ? "asteroid" : "ufo";
   return createTarget(x, y, 2, type === "ufo" ? scale * 1.25 : scale, type);
 };
+
+import { useEffect } from "react";
+
+export const useGameLoop = (updateFunction: () => void) => {
+  useEffect(() => {
+    let animationFrameId: number;
+
+    const gameLoop = () => {
+      updateFunction();
+      animationFrameId = requestAnimationFrame(gameLoop);
+    };
+
+    gameLoop();
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [updateFunction]);
+};
+
+export const useKeyboardControls = (
+  setSpaceshipPosition: React.Dispatch<
+    React.SetStateAction<{ x: number; y: number }>
+  >
+) => {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const speed = 5; // Adjust as needed
+      switch (event.key) {
+        case "ArrowUp":
+          setSpaceshipPosition((prev) => ({ ...prev, y: prev.y - speed }));
+          break;
+        case "ArrowDown":
+          setSpaceshipPosition((prev) => ({ ...prev, y: prev.y + speed }));
+          break;
+        case "ArrowLeft":
+          setSpaceshipPosition((prev) => ({ ...prev, x: prev.x - speed }));
+          break;
+        case "ArrowRight":
+          setSpaceshipPosition((prev) => ({ ...prev, x: prev.x + speed }));
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [setSpaceshipPosition]);
+};

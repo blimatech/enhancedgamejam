@@ -1,6 +1,8 @@
 import "./globals.css";
 
+import { BackgroundMusic } from "./components/BackgroundMusic";
 import type { Metadata } from "next";
+import React from "react";
 import localFont from "next/font/local";
 
 const geistSans = localFont({
@@ -21,14 +23,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <BackgroundMusic />
         {children}
       </body>
     </html>

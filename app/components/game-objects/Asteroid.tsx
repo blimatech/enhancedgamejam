@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from "react";
 
 import Image from "next/image";
-import asteroidImageSrc from "@/assets/images/Asteroid.png";
 
 type AsteroidProps = {
   size?: "small" | "medium" | "large";
@@ -48,7 +47,7 @@ export const Asteroid: React.FC<AsteroidProps> = ({
   return (
     <div style={style}>
       <Image
-        src={asteroidImageSrc}
+        src="/images/Asteroid.png"
         alt="Asteroid"
         width={sizeMap[size]}
         height={sizeMap[size]}
