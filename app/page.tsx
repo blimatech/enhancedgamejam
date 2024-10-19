@@ -10,17 +10,6 @@ import bulletImageSrc from "@/assets/images/Bullet.png";
 import spaceshipImageSrc from "@/assets/images/Spaceship.png";
 import ufoImageSrc from "@/assets/images/UFO.png";
 
-// Import SVG content as strings
-const asteroidSvg = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <path d="M50 10 L70 30 L90 50 L70 70 L50 90 L30 70 L10 50 L30 30 Z" fill="#8B4513"/>
-  <circle cx="40" cy="40" r="8" fill="#A0522D"/>
-  <circle cx="60" cy="60" r="6" fill="#A0522D"/>
-</svg>`;
-
-const bulletSvg = `<svg viewBox="0 0 20 40" xmlns="http://www.w3.org/2000/svg">
-  <path d="M10 0 L20 40 L0 40 Z" fill="#ff0000"/>
-</svg>`;
-
 class GameObject {
   x: number;
   y: number;
