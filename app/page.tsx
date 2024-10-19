@@ -97,6 +97,7 @@ export default function EnhancedAsteroidGame() {
       ufo2: "/images/UFO2.png",
       ufo3: "/images/UFO3.png",
       background: "/images/background.jpg",
+      bullet: "/images/bullet.png", // Add this line
     };
 
     const loadImage = (key: string, src: string): Promise<void> => {
@@ -330,10 +331,25 @@ export default function EnhancedAsteroidGame() {
       gameStateRef.current.lasers = gameStateRef.current.lasers
         .map((laser) => {
           laser = moveGameObject(laser);
-          ctx.fillStyle = "yellow";
-          ctx.beginPath();
-          ctx.arc(laser.x, laser.y, laser.radius, 0, Math.PI * 2);
-          ctx.fill();
+          if (images.bullet) {
+            ctx.save();
+            ctx.translate(laser.x, laser.y);
+            ctx.rotate(Math.atan2(laser.dy, laser.dx) + Math.PI / 2); // Rotated by 90 degrees
+            ctx.drawImage(
+              images.bullet,
+              -laser.radius * 3, // Tripled the size
+              -laser.radius * 3, // Tripled the size
+              laser.radius * 6, // Tripled the size
+              laser.radius * 6 // Tripled the size
+            );
+            ctx.restore();
+          } else {
+            // Fallback to drawing a circle if image is not available
+            ctx.fillStyle = "yellow";
+            ctx.beginPath();
+            ctx.arc(laser.x, laser.y, laser.radius * 3, 0, Math.PI * 2); // Tripled the radius
+            ctx.fill();
+          }
           return laser;
         })
         .filter((laser) => {

@@ -84,7 +84,7 @@ export const createLaser = (
   angle: number,
   speed: number
 ): Laser => ({
-  ...createGameObject(x, y, 3, speed),
+  ...createGameObject(x, y, 8, speed), // Increased radius from 6 to 8
   dx: Math.cos(angle) * speed,
   dy: Math.sin(angle) * speed,
 });
