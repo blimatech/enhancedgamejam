@@ -5,11 +5,11 @@ import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Scoreboard from "@/components/Scoreboard";
-import asteroidImageSrc from "/assets/images/Asteroid.png";
-import backgroundImageSrc from "/assets/images/background.jpg";
-import bulletImageSrc from "/assets/images/Bullet.png";
-import spaceshipImageSrc from "/assets/images/Spaceship.png";
-import ufoImageSrc from "/assets/images/UFO.png";
+import asteroidImageSrc from "@/assets/images/Asteroid.png";
+import backgroundImageSrc from "@/assets/images/background.jpg";
+import bulletImageSrc from "@/assets/images/Bullet.png";
+import spaceshipImageSrc from "@/assets/images/Spaceship.png";
+import ufoImageSrc from "@/assets/images/UFO.png";
 
 class GameObject {
   x: number;
@@ -95,8 +95,10 @@ export default function EnhancedAsteroidGame() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    const CANVAS_WIDTH = canvas.width;
-    const CANVAS_HEIGHT = canvas.height;
+    let CANVAS_WIDTH = canvas.width;
+    let CANVAS_HEIGHT = canvas.height;
+
+    let safeDistance = Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.2; // 20% of the smaller dimension
 
     let spaceship = new Spaceship(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 3, 1.5); // Increased scale from 1 to 1.5
     let targets: Target[] = [];
@@ -180,7 +182,6 @@ export default function EnhancedAsteroidGame() {
     }
 
     function createTarget() {
-      const safeDistance = 350; // Increased from 250 to 350
       let x = 0,
         y = 0;
       let isValidPosition = false;
@@ -190,18 +191,18 @@ export default function EnhancedAsteroidGame() {
         switch (side) {
           case 0: // top
             x = Math.random() * CANVAS_WIDTH;
-            y = -50; // Increased from -30 to -50
+            y = -50;
             break;
           case 1: // right
-            x = CANVAS_WIDTH + 50; // Increased from +30 to +50
+            x = CANVAS_WIDTH + 50;
             y = Math.random() * CANVAS_HEIGHT;
             break;
           case 2: // bottom
             x = Math.random() * CANVAS_WIDTH;
-            y = CANVAS_HEIGHT + 50; // Increased from +30 to +50
+            y = CANVAS_HEIGHT + 50;
             break;
           case 3: // left
-            x = -50; // Increased from -30 to -50
+            x = -50;
             y = Math.random() * CANVAS_HEIGHT;
             break;
         }
@@ -216,8 +217,7 @@ export default function EnhancedAsteroidGame() {
         }
       }
 
-      // Slightly reduce the scale for UFOs
-      const scale = Math.random() < 0.5 ? 1.5 : 1; // 50% chance of larger targets
+      const scale = Math.random() < 0.5 ? 1.5 : 1;
       const type = Math.random() < 0.5 ? "asteroid" : "ufo";
       return new Target(x, y, 2, type === "ufo" ? scale * 1.25 : scale, type);
     }
@@ -300,8 +300,15 @@ export default function EnhancedAsteroidGame() {
 
       // Add new targets if needed, with a delay
       if (targets.length < 5 && Math.random() < 0.02) {
-        // 2% chance each frame
-        targets.push(createTarget());
+        const newTarget = createTarget();
+        // Double-check the distance to ensure it's outside the safe zone
+        const distanceToSpaceship = Math.hypot(
+          newTarget.x - spaceship.x,
+          newTarget.y - spaceship.y
+        );
+        if (distanceToSpaceship > safeDistance) {
+          targets.push(newTarget);
+        }
       }
 
       // Update and draw lasers
@@ -350,6 +357,9 @@ export default function EnhancedAsteroidGame() {
       if (canvas) {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+        CANVAS_WIDTH = canvas.width;
+        CANVAS_HEIGHT = canvas.height;
+        safeDistance = Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.2;
       }
     }
     window.addEventListener("resize", handleResize);
