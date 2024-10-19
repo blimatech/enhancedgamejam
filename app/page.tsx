@@ -19,6 +19,12 @@ export default function EnhancedAsteroidGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
+  const gameStateRef = useRef({
+    spaceship: {} as Spaceship,
+    targets: [] as Target[],
+    lasers: [] as Laser[],
+    keys: {} as { [key: string]: boolean },
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -36,26 +42,23 @@ export default function EnhancedAsteroidGame() {
 
     let safeDistance = Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.2;
 
-    let spaceship = createSpaceship(
+    gameStateRef.current.spaceship = createSpaceship(
       CANVAS_WIDTH / 2,
       CANVAS_HEIGHT / 2,
       3,
       1.5
     );
-    let targets: Target[] = [];
-    let lasers: Laser[] = [];
 
     // Create initial targets
     for (let i = 0; i < 5; i++) {
-      targets.push(
-        createNewTarget(
-          CANVAS_WIDTH,
-          CANVAS_HEIGHT,
-          safeDistance,
-          spaceship.x,
-          spaceship.y
-        )
+      const newTarget = createNewTarget(
+        CANVAS_WIDTH,
+        CANVAS_HEIGHT,
+        safeDistance,
+        gameStateRef.current.spaceship.x,
+        gameStateRef.current.spaceship.y
       );
+      gameStateRef.current.targets.push(newTarget);
     }
 
     // Pre-load images
@@ -83,17 +86,15 @@ export default function EnhancedAsteroidGame() {
       });
     };
 
-    // Keyboard state
-    const keys: { [key: string]: boolean } = {};
-
     function handleKeyDown(e: KeyboardEvent) {
-      keys[e.key] = true;
+      gameStateRef.current.keys[e.key] = true;
     }
 
     function handleKeyUp(e: KeyboardEvent) {
-      keys[e.key] = false;
-      if (e.key === " ") {
+      gameStateRef.current.keys[e.key] = false;
+      if (e.key === " " && !gameOver) {
         // Shoot laser
+        const { spaceship } = gameStateRef.current;
         const angle = spaceship.angle;
         const laserSpeed = 8;
         const laserDistance = spaceship.radius + 5;
@@ -103,7 +104,7 @@ export default function EnhancedAsteroidGame() {
           angle,
           laserSpeed
         );
-        lasers.push(laser);
+        gameStateRef.current.lasers.push(laser);
       }
     }
 
@@ -111,24 +112,30 @@ export default function EnhancedAsteroidGame() {
     window.addEventListener("keyup", handleKeyUp);
 
     function updateSpaceship() {
+      const { spaceship, keys } = gameStateRef.current;
+      let updatedSpaceship = { ...spaceship };
+
       if (keys["ArrowLeft"]) {
-        spaceship = rotateSpaceship(spaceship, -0.1);
+        updatedSpaceship = rotateSpaceship(updatedSpaceship, -0.1);
       }
       if (keys["ArrowRight"]) {
-        spaceship = rotateSpaceship(spaceship, 0.1);
+        updatedSpaceship = rotateSpaceship(updatedSpaceship, 0.1);
       }
       if (keys["ArrowUp"]) {
-        spaceship.dx += Math.cos(spaceship.angle) * 0.1;
-        spaceship.dy += Math.sin(spaceship.angle) * 0.1;
+        updatedSpaceship.dx += Math.cos(updatedSpaceship.angle) * 0.1;
+        updatedSpaceship.dy += Math.sin(updatedSpaceship.angle) * 0.1;
       }
-      spaceship = moveGameObject(spaceship) as Spaceship;
+      updatedSpaceship = moveGameObject(updatedSpaceship) as Spaceship;
 
       // Keep spaceship on screen
-      spaceship.x = (spaceship.x + CANVAS_WIDTH) % CANVAS_WIDTH;
-      spaceship.y = (spaceship.y + CANVAS_HEIGHT) % CANVAS_HEIGHT;
+      updatedSpaceship.x = (updatedSpaceship.x + CANVAS_WIDTH) % CANVAS_WIDTH;
+      updatedSpaceship.y = (updatedSpaceship.y + CANVAS_HEIGHT) % CANVAS_HEIGHT;
+
+      gameStateRef.current.spaceship = updatedSpaceship;
     }
 
     function checkCollisions() {
+      const { spaceship, targets, lasers } = gameStateRef.current;
       // Check laser-target collisions
       for (let i = lasers.length - 1; i >= 0; i--) {
         for (let j = targets.length - 1; j >= 0; j--) {
@@ -160,8 +167,6 @@ export default function EnhancedAsteroidGame() {
     function gameLoop() {
       if (!ctx || gameOver) return;
 
-      console.log("Game loop running");
-
       // Clear the canvas before redrawing
       ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
@@ -169,7 +174,6 @@ export default function EnhancedAsteroidGame() {
       if (images.background) {
         ctx.drawImage(images.background, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
       } else {
-        // Fallback to a solid color if the background image isn't loaded
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
       }
@@ -178,6 +182,7 @@ export default function EnhancedAsteroidGame() {
 
       // Draw spaceship
       if (images.spaceship) {
+        const { spaceship } = gameStateRef.current;
         ctx.save();
         ctx.translate(spaceship.x, spaceship.y);
         ctx.rotate(spaceship.angle + Math.PI / 2);
@@ -192,7 +197,7 @@ export default function EnhancedAsteroidGame() {
       }
 
       // Update and draw targets
-      targets = targets
+      gameStateRef.current.targets = gameStateRef.current.targets
         .map((target) => {
           target = moveGameObject(target) as Target;
           const img = target.type === "asteroid" ? images.asteroid : images.ufo;
@@ -218,19 +223,19 @@ export default function EnhancedAsteroidGame() {
         });
 
       // Add new targets if needed, with a delay
-      if (targets.length < 5 && Math.random() < 0.02) {
+      if (gameStateRef.current.targets.length < 5 && Math.random() < 0.02) {
         const newTarget = createNewTarget(
           CANVAS_WIDTH,
           CANVAS_HEIGHT,
           safeDistance,
-          spaceship.x,
-          spaceship.y
+          gameStateRef.current.spaceship.x,
+          gameStateRef.current.spaceship.y
         );
-        targets.push(newTarget);
+        gameStateRef.current.targets.push(newTarget);
       }
 
       // Update and draw lasers
-      lasers = lasers
+      gameStateRef.current.lasers = gameStateRef.current.lasers
         .map((laser) => {
           laser = moveGameObject(laser);
           ctx.fillStyle = "yellow";
@@ -248,17 +253,6 @@ export default function EnhancedAsteroidGame() {
             laser.y > CANVAS_HEIGHT
           );
         });
-
-      // Debug rendering
-      ctx.fillStyle = "white";
-      ctx.font = "20px Arial";
-      ctx.fillText(
-        `Spaceship: (${Math.round(spaceship.x)}, ${Math.round(spaceship.y)})`,
-        10,
-        30
-      );
-      ctx.fillText(`Targets: ${targets.length}`, 10, 60);
-      ctx.fillText(`Lasers: ${lasers.length}`, 10, 90);
 
       checkCollisions();
 
