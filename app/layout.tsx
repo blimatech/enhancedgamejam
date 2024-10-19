@@ -15,8 +15,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Asteroids",
-  description: "Asteroids game",
+  title: "Paranoid Asteroid",
+  description: "Paranoid Asteroid game",
 };
 
 export default function RootLayout({
