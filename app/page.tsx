@@ -25,6 +25,8 @@ export default function EnhancedAsteroidGame() {
     lasers: [] as Laser[],
     keys: {} as { [key: string]: boolean },
   });
+  const laserSoundRef = useRef<HTMLAudioElement | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -86,30 +88,59 @@ export default function EnhancedAsteroidGame() {
       });
     };
 
+    // Initialize laser sound
+    laserSoundRef.current = new Audio("/sounds/LaserShootMusic.mp3");
+
     function handleKeyDown(e: KeyboardEvent) {
       gameStateRef.current.keys[e.key] = true;
+
+      // Shoot laser on spacebar press
+      if (e.key === " " && !gameOver) {
+        shootLaser();
+      }
     }
 
     function handleKeyUp(e: KeyboardEvent) {
       gameStateRef.current.keys[e.key] = false;
-      if (e.key === " " && !gameOver) {
-        // Shoot laser
-        const { spaceship } = gameStateRef.current;
-        const angle = spaceship.angle;
-        const laserSpeed = 8;
-        const laserDistance = spaceship.radius + 5;
-        const laser = createLaser(
-          spaceship.x + Math.cos(angle) * laserDistance,
-          spaceship.y + Math.sin(angle) * laserDistance,
-          angle,
-          laserSpeed
-        );
-        gameStateRef.current.lasers.push(laser);
+    }
+
+    function shootLaser() {
+      const { spaceship } = gameStateRef.current;
+      const angle = spaceship.angle;
+      const laserSpeed = 8;
+      const laserDistance = spaceship.radius + 5;
+      const laser = createLaser(
+        spaceship.x + Math.cos(angle) * laserDistance,
+        spaceship.y + Math.sin(angle) * laserDistance,
+        angle,
+        laserSpeed
+      );
+      gameStateRef.current.lasers.push(laser);
+
+      // Play laser sound only if not muted
+      if (laserSoundRef.current && !isMuted) {
+        laserSoundRef.current.currentTime = 0; // Reset the audio to the beginning
+        laserSoundRef.current
+          .play()
+          .catch((error) => console.error("Error playing laser sound:", error));
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
+
+    // Add event listener for mute toggle
+    const handleMuteToggle = (event: CustomEvent) => {
+      setIsMuted(event.detail.isMuted);
+      if (laserSoundRef.current) {
+        laserSoundRef.current.muted = event.detail.isMuted;
+      }
+    };
+
+    window.addEventListener(
+      "soundMuteToggle",
+      handleMuteToggle as EventListener
+    );
 
     function updateSpaceship() {
       const { spaceship, keys } = gameStateRef.current;
@@ -305,9 +336,17 @@ export default function EnhancedAsteroidGame() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener(
+        "soundMuteToggle",
+        handleMuteToggle as EventListener
+      );
       window.removeEventListener("resize", handleResize);
+      if (laserSoundRef.current) {
+        laserSoundRef.current.pause();
+        laserSoundRef.current = null;
+      }
     };
-  }, []);
+  }, [gameOver, isMuted]);
 
   return (
     <div

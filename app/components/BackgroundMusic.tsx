@@ -31,24 +31,35 @@ export const BackgroundMusic: React.FC = () => {
       setIsMuted(true);
     });
 
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.key === "m" || event.key === "M") {
+        toggleMute();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
       }
+      window.removeEventListener("keydown", handleKeyPress);
     };
   }, []);
 
   const toggleMute = () => {
-    if (audioRef.current) {
-      if (isMuted) {
-        audioRef.current.play().catch(console.error);
-        audioRef.current.muted = false;
-      } else {
-        audioRef.current.muted = true;
+    setIsMuted((prevMuted) => {
+      const newMuted = !prevMuted;
+      if (audioRef.current) {
+        audioRef.current.muted = newMuted;
       }
-      setIsMuted(!isMuted);
-    }
+      // Dispatch a custom event to notify other components about the mute state change
+      window.dispatchEvent(
+        new CustomEvent("soundMuteToggle", { detail: { isMuted: newMuted } })
+      );
+      return newMuted;
+    });
   };
 
   return (
