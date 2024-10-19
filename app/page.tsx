@@ -43,9 +43,24 @@ export default function EnhancedAsteroidGame() {
         "/images/UFO2.png",
         "/images/UFO3.png",
       ];
+      const backgroundImages = [
+        "/images/background1.jpg",
+        "/images/background2.jpg",
+        "/images/background3.jpg",
+      ];
 
-      const imageSet = type === "asteroid" ? asteroidImages : ufoImages;
-      return imageSet[Math.min(level - 1, imageSet.length - 1)];
+      switch (type) {
+        case "asteroid":
+          return asteroidImages[Math.min(level - 1, asteroidImages.length - 1)];
+        case "ufo":
+          return ufoImages[Math.min(level - 1, ufoImages.length - 1)];
+        case "background":
+          return backgroundImages[
+            Math.min(level - 1, backgroundImages.length - 1)
+          ];
+        default:
+          return "";
+      }
     },
     [level]
   );
@@ -96,8 +111,10 @@ export default function EnhancedAsteroidGame() {
       ufo1: "/images/UFO1.png",
       ufo2: "/images/UFO2.png",
       ufo3: "/images/UFO3.png",
-      background: "/images/background.jpg",
-      bullet: "/images/bullet.png", // Add this line
+      background1: "/images/background1.jpg",
+      background2: "/images/background2.jpg",
+      background3: "/images/background3.jpg",
+      bullet: "/images/bullet.png",
     };
 
     const loadImage = (key: string, src: string): Promise<void> => {
@@ -255,8 +272,9 @@ export default function EnhancedAsteroidGame() {
       ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
       // Draw background
-      if (images.background) {
-        ctx.drawImage(images.background, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      const backgroundImage = images[`background${level}`];
+      if (backgroundImage) {
+        ctx.drawImage(backgroundImage, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
       } else {
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
