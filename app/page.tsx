@@ -37,26 +37,31 @@ export default function EnhancedAsteroidGame() {
         "/images/Asteroid1.png",
         "/images/Asteroid2.png",
         "/images/Asteroid3.png",
+        "/images/Asteroid4.png", // Use Asteroid4 for level 4
       ];
       const ufoImages = [
         "/images/UFO1.png",
         "/images/UFO2.png",
         "/images/UFO3.png",
+        "/images/UFO4.png", // New UFO4 image
       ];
       const backgroundImages = [
         "/images/background1.jpg",
         "/images/background2.jpg",
         "/images/background3.jpg",
+        "/images/background4.jpg", // New background4 image
       ];
       const starshipImages = [
         "/images/spaceship1.png",
         "/images/spaceship2.png",
         "/images/spaceship3.png",
+        "/images/spaceship4.png", // New spaceship4 image
       ];
       const bulletImages = [
         "/images/bullet1.png",
         "/images/bullet2.png",
         "/images/bullet3.png",
+        "/images/bullet4.png", // New bullet4 image
       ];
 
       switch (type) {
@@ -102,9 +107,35 @@ export default function EnhancedAsteroidGame() {
       1.5
     );
 
-    // Create initial targets
-    for (let i = 0; i < 5; i++) {
-      const newTarget = createNewTarget(
+    // Modify the createNewTarget function to account for level 4
+    const createLevelAdjustedTarget = (
+      canvasWidth: number,
+      canvasHeight: number,
+      safeDistance: number,
+      spaceshipX: number,
+      spaceshipY: number,
+      currentLevel: number
+    ) => {
+      const target = createNewTarget(
+        canvasWidth,
+        canvasHeight,
+        safeDistance,
+        spaceshipX,
+        spaceshipY,
+        currentLevel
+      );
+
+      // Set fixed size for level 4
+      if (currentLevel === 4) {
+        target.radius = 35; // Same fixed size for both asteroid and UFO
+      }
+
+      return target;
+    };
+
+    // Use the new function when creating initial targets
+    for (let i = 0; i < 3; i++) {
+      const newTarget = createLevelAdjustedTarget(
         CANVAS_WIDTH,
         CANVAS_HEIGHT,
         safeDistance,
@@ -121,18 +152,23 @@ export default function EnhancedAsteroidGame() {
       spaceship1: "/images/spaceship1.png",
       spaceship2: "/images/spaceship2.png",
       spaceship3: "/images/spaceship3.png",
+      spaceship4: "/images/spaceship4.png", // New spaceship4 image
       asteroid1: "/images/Asteroid1.png",
       asteroid2: "/images/Asteroid2.png",
       asteroid3: "/images/Asteroid3.png",
+      asteroid4: "/images/Asteroid4.png",
       ufo1: "/images/UFO1.png",
       ufo2: "/images/UFO2.png",
       ufo3: "/images/UFO3.png",
+      ufo4: "/images/UFO4.png", // New UFO4 image
       background1: "/images/background1.jpg",
       background2: "/images/background2.jpg",
       background3: "/images/background3.jpg",
+      background4: "/images/background4.jpg", // New background4 image
       bullet1: "/images/bullet1.png",
       bullet2: "/images/bullet2.png",
       bullet3: "/images/bullet3.png",
+      bullet4: "/images/bullet4.png", // New bullet4 image
     };
 
     const loadImage = (key: string, src: string): Promise<void> => {
@@ -216,15 +252,13 @@ export default function EnhancedAsteroidGame() {
       let updatedSpaceship = { ...spaceship };
 
       if (keys["ArrowLeft"]) {
-        updatedSpaceship = rotateSpaceship(updatedSpaceship, -0.05); // Reduced from -0.1 to -0.05
+        updatedSpaceship = rotateSpaceship(updatedSpaceship, -0.05);
       }
       if (keys["ArrowRight"]) {
-        updatedSpaceship = rotateSpaceship(updatedSpaceship, 0.05); // Reduced from 0.1 to 0.05
+        updatedSpaceship = rotateSpaceship(updatedSpaceship, 0.05);
       }
-      if (keys["ArrowUp"]) {
-        updatedSpaceship.dx += Math.cos(updatedSpaceship.angle) * 0.1;
-        updatedSpaceship.dy += Math.sin(updatedSpaceship.angle) * 0.1;
-      }
+      // Remove the code for ArrowUp key
+
       updatedSpaceship = moveGameObject(updatedSpaceship) as Spaceship;
 
       // Keep spaceship on screen
@@ -321,16 +355,26 @@ export default function EnhancedAsteroidGame() {
       gameStateRef.current.targets = gameStateRef.current.targets
         .map((target) => {
           target = moveGameObject(target) as Target;
-          const imgKey =
-            target.type === "asteroid" ? `asteroid${level}` : `ufo${level}`;
+          let imgKey;
+          if (level === 4) {
+            imgKey = `${target.type}4`; // Use asteroid4 and ufo4 for level 4
+          } else {
+            imgKey = `${target.type}${level}`;
+          }
           const img = images[imgKey];
           if (img) {
+            let size;
+            if (level === 4) {
+              size = 70; // Same fixed size for both asteroid and UFO in level 4
+            } else {
+              size = target.radius * 2;
+            }
             ctx.drawImage(
               img,
-              target.x - target.radius,
-              target.y - target.radius,
-              target.radius * 2,
-              target.radius * 2
+              target.x - size / 2,
+              target.y - size / 2,
+              size,
+              size
             );
           } else {
             // Fallback to drawing a circle if image is not available
@@ -351,9 +395,9 @@ export default function EnhancedAsteroidGame() {
           );
         });
 
-      // Add new targets if needed, with a delay
-      if (gameStateRef.current.targets.length < 5 && Math.random() < 0.02) {
-        const newTarget = createNewTarget(
+      // Reduce the rate of adding new targets
+      if (gameStateRef.current.targets.length < 3 && Math.random() < 0.01) {
+        const newTarget = createLevelAdjustedTarget(
           CANVAS_WIDTH,
           CANVAS_HEIGHT,
           safeDistance,
@@ -436,8 +480,8 @@ export default function EnhancedAsteroidGame() {
 
     // Add level progression based on time
     const levelInterval = setInterval(() => {
-      setLevel((prevLevel) => Math.min(prevLevel + 1, 3));
-    }, 5000); // Increase level every 5 seconds, up to level 3
+      setLevel((prevLevel) => Math.min(prevLevel + 1, 4)); // Increase max level to 4
+    }, 1000); // Increase level every 5 seconds, up to level 4
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
