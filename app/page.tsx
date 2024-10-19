@@ -1,88 +1,24 @@
 "use client";
 
+import {
+  Laser,
+  Spaceship,
+  Target,
+  createLaser,
+  createNewTarget,
+  createSpaceship,
+  moveGameObject,
+  rotateSpaceship,
+} from "@/app/utils/gameUtils";
 import React, { useEffect, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import Image from "next/image";
-import Scoreboard from "@/components/Scoreboard";
-import asteroidImageSrc from "@/assets/images/Asteroid.png";
-import backgroundImageSrc from "@/assets/images/background.jpg";
-import bulletImageSrc from "@/assets/images/Bullet.png";
-import spaceshipImageSrc from "@/assets/images/Spaceship.png";
-import ufoImageSrc from "@/assets/images/UFO.png";
-
-class GameObject {
-  x: number;
-  y: number;
-  radius: number;
-  dx: number;
-  dy: number;
-  speed: number;
-
-  constructor(x: number, y: number, radius: number, speed: number) {
-    this.x = x;
-    this.y = y;
-    this.radius = radius;
-    this.dx = 0;
-    this.dy = 0;
-    this.speed = speed;
-  }
-
-  move() {
-    this.x += this.dx;
-    this.y += this.dy;
-  }
-}
-
-class Spaceship extends GameObject {
-  angle: number;
-  scale: number;
-
-  constructor(x: number, y: number, speed: number, scale: number = 1) {
-    super(x, y, 30 * scale, speed); // Increased radius from 20 to 30
-    this.angle = -Math.PI / 2; // Start facing upwards
-    this.scale = scale;
-  }
-
-  rotate(angle: number) {
-    this.angle += angle;
-  }
-}
-
-class Target extends GameObject {
-  scale: number;
-  type: "asteroid" | "ufo";
-
-  constructor(
-    x: number,
-    y: number,
-    speed: number,
-    scale: number,
-    type: "asteroid" | "ufo"
-  ) {
-    // Slightly reduce the size for UFOs
-    super(x, y, type === "asteroid" ? Math.random() * 30 + 20 : 25, speed);
-    const angle = Math.random() * Math.PI * 2;
-    this.dx = Math.cos(angle) * this.speed;
-    this.dy = Math.sin(angle) * this.speed;
-    this.scale = scale;
-    this.type = type;
-  }
-}
-
-class Laser extends GameObject {
-  constructor(x: number, y: number, angle: number, speed: number) {
-    super(x, y, 3, speed);
-    this.dx = Math.cos(angle) * this.speed;
-    this.dy = Math.sin(angle) * this.speed;
-  }
-}
+import { Button } from "@/app/components/ui/button";
+import Scoreboard from "@/app/components/Scoreboard";
 
 export default function EnhancedAsteroidGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
-  const scoreRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -98,43 +34,54 @@ export default function EnhancedAsteroidGame() {
     let CANVAS_WIDTH = canvas.width;
     let CANVAS_HEIGHT = canvas.height;
 
-    let safeDistance = Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.2; // 20% of the smaller dimension
+    let safeDistance = Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.2;
 
-    let spaceship = new Spaceship(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 3, 1.5); // Increased scale from 1 to 1.5
+    let spaceship = createSpaceship(
+      CANVAS_WIDTH / 2,
+      CANVAS_HEIGHT / 2,
+      3,
+      1.5
+    );
     let targets: Target[] = [];
     let lasers: Laser[] = [];
 
     // Create initial targets
     for (let i = 0; i < 5; i++) {
       targets.push(
-        new Target(
-          Math.random() * CANVAS_WIDTH,
-          Math.random() * CANVAS_HEIGHT,
-          2,
-          1,
-          Math.random() < 0.5 ? "asteroid" : "ufo"
+        createNewTarget(
+          CANVAS_WIDTH,
+          CANVAS_HEIGHT,
+          safeDistance,
+          spaceship.x,
+          spaceship.y
         )
       );
     }
 
     // Pre-load images
-    const spaceshipImg = new window.Image();
-    spaceshipImg.src = spaceshipImageSrc;
-    const asteroidImg = new window.Image();
-    asteroidImg.src = asteroidImageSrc;
-    const bulletImg = new window.Image();
-    bulletImg.src = bulletImageSrc;
-    const ufoImg = new window.Image();
-    ufoImg.src = ufoImageSrc;
-    const backgroundImg = new window.Image();
-    backgroundImg.src = backgroundImageSrc;
+    const images: { [key: string]: HTMLImageElement } = {};
+    const imageSources = {
+      spaceship: "/images/Spaceship.png",
+      asteroid: "/images/Asteroid.png",
+      ufo: "/images/UFO.png",
+      background: "/images/background.jpg",
+    };
 
-    console.log("Image sources:", {
-      spaceship: spaceshipImageSrc,
-      asteroid: asteroidImageSrc,
-      bullet: bulletImageSrc,
-      ufo: ufoImageSrc,
-    });
+    const loadImage = (key: string, src: string): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          images[key] = img;
+          console.log(`Image loaded: ${key}`);
+          resolve();
+        };
+        img.onerror = (error) => {
+          console.error(`Error loading image ${key}:`, error);
+          reject(error);
+        };
+        img.src = src;
+      });
+    };
 
     // Keyboard state
     const keys: { [key: string]: boolean } = {};
@@ -148,9 +95,9 @@ export default function EnhancedAsteroidGame() {
       if (e.key === " ") {
         // Shoot laser
         const angle = spaceship.angle;
-        const laserSpeed = 8; // Increased from 5 to 8
-        const laserDistance = spaceship.radius + 5; // Increased distance
-        const laser = new Laser(
+        const laserSpeed = 8;
+        const laserDistance = spaceship.radius + 5;
+        const laser = createLaser(
           spaceship.x + Math.cos(angle) * laserDistance,
           spaceship.y + Math.sin(angle) * laserDistance,
           angle,
@@ -165,61 +112,20 @@ export default function EnhancedAsteroidGame() {
 
     function updateSpaceship() {
       if (keys["ArrowLeft"]) {
-        spaceship.rotate(-0.1);
+        spaceship = rotateSpaceship(spaceship, -0.1);
       }
       if (keys["ArrowRight"]) {
-        spaceship.rotate(0.1);
+        spaceship = rotateSpaceship(spaceship, 0.1);
       }
       if (keys["ArrowUp"]) {
         spaceship.dx += Math.cos(spaceship.angle) * 0.1;
         spaceship.dy += Math.sin(spaceship.angle) * 0.1;
       }
-      spaceship.move();
+      spaceship = moveGameObject(spaceship) as Spaceship;
 
       // Keep spaceship on screen
       spaceship.x = (spaceship.x + CANVAS_WIDTH) % CANVAS_WIDTH;
       spaceship.y = (spaceship.y + CANVAS_HEIGHT) % CANVAS_HEIGHT;
-    }
-
-    function createTarget() {
-      let x = 0,
-        y = 0;
-      let isValidPosition = false;
-
-      while (!isValidPosition) {
-        const side = Math.floor(Math.random() * 4);
-        switch (side) {
-          case 0: // top
-            x = Math.random() * CANVAS_WIDTH;
-            y = -50;
-            break;
-          case 1: // right
-            x = CANVAS_WIDTH + 50;
-            y = Math.random() * CANVAS_HEIGHT;
-            break;
-          case 2: // bottom
-            x = Math.random() * CANVAS_WIDTH;
-            y = CANVAS_HEIGHT + 50;
-            break;
-          case 3: // left
-            x = -50;
-            y = Math.random() * CANVAS_HEIGHT;
-            break;
-        }
-
-        // Check if the position is far enough from the spaceship
-        const distanceToSpaceship = Math.hypot(
-          x - spaceship.x,
-          y - spaceship.y
-        );
-        if (distanceToSpaceship > safeDistance) {
-          isValidPosition = true;
-        }
-      }
-
-      const scale = Math.random() < 0.5 ? 1.5 : 1;
-      const type = Math.random() < 0.5 ? "asteroid" : "ufo";
-      return new Target(x, y, 2, type === "ufo" ? scale * 1.25 : scale, type);
     }
 
     function checkCollisions() {
@@ -256,96 +162,115 @@ export default function EnhancedAsteroidGame() {
 
       console.log("Game loop running");
 
-      // Draw background to cover the entire canvas
-      ctx.drawImage(backgroundImg, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      // Clear the canvas before redrawing
+      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+      // Draw background
+      if (images.background) {
+        ctx.drawImage(images.background, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      } else {
+        // Fallback to a solid color if the background image isn't loaded
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      }
 
       updateSpaceship();
 
       // Draw spaceship
-      ctx.save();
-      ctx.translate(spaceship.x, spaceship.y);
-      ctx.rotate(spaceship.angle + Math.PI / 2);
-      ctx.drawImage(
-        spaceshipImg,
-        -spaceship.radius,
-        -spaceship.radius,
-        spaceship.radius * 2,
-        spaceship.radius * 2
-      );
-      ctx.restore();
+      if (images.spaceship) {
+        ctx.save();
+        ctx.translate(spaceship.x, spaceship.y);
+        ctx.rotate(spaceship.angle + Math.PI / 2);
+        ctx.drawImage(
+          images.spaceship,
+          -spaceship.radius,
+          -spaceship.radius,
+          spaceship.radius * 2,
+          spaceship.radius * 2
+        );
+        ctx.restore();
+      }
 
       // Update and draw targets
-      for (let i = targets.length - 1; i >= 0; i--) {
-        const target = targets[i];
-        target.move();
-        const img = target.type === "asteroid" ? asteroidImg : ufoImg;
-        ctx.drawImage(
-          img,
-          target.x - target.radius,
-          target.y - target.radius,
-          target.radius * 2,
-          target.radius * 2
-        );
-
-        // Remove targets that are off-screen
-        if (
-          target.x < -50 ||
-          target.x > CANVAS_WIDTH + 50 ||
-          target.y < -50 ||
-          target.y > CANVAS_HEIGHT + 50
-        ) {
-          targets.splice(i, 1);
-        }
-      }
+      targets = targets
+        .map((target) => {
+          target = moveGameObject(target) as Target;
+          const img = target.type === "asteroid" ? images.asteroid : images.ufo;
+          if (img) {
+            ctx.drawImage(
+              img,
+              target.x - target.radius,
+              target.y - target.radius,
+              target.radius * 2,
+              target.radius * 2
+            );
+          }
+          return target;
+        })
+        .filter((target) => {
+          // Remove targets that are off-screen
+          return !(
+            target.x < -50 ||
+            target.x > CANVAS_WIDTH + 50 ||
+            target.y < -50 ||
+            target.y > CANVAS_HEIGHT + 50
+          );
+        });
 
       // Add new targets if needed, with a delay
       if (targets.length < 5 && Math.random() < 0.02) {
-        const newTarget = createTarget();
-        // Double-check the distance to ensure it's outside the safe zone
-        const distanceToSpaceship = Math.hypot(
-          newTarget.x - spaceship.x,
-          newTarget.y - spaceship.y
+        const newTarget = createNewTarget(
+          CANVAS_WIDTH,
+          CANVAS_HEIGHT,
+          safeDistance,
+          spaceship.x,
+          spaceship.y
         );
-        if (distanceToSpaceship > safeDistance) {
-          targets.push(newTarget);
-        }
+        targets.push(newTarget);
       }
 
       // Update and draw lasers
-      for (let i = lasers.length - 1; i >= 0; i--) {
-        const laser = lasers[i];
-        laser.move();
-        ctx.fillStyle = "yellow";
-        ctx.beginPath();
-        ctx.arc(laser.x, laser.y, laser.radius, 0, Math.PI * 2);
-        ctx.fill();
+      lasers = lasers
+        .map((laser) => {
+          laser = moveGameObject(laser);
+          ctx.fillStyle = "yellow";
+          ctx.beginPath();
+          ctx.arc(laser.x, laser.y, laser.radius, 0, Math.PI * 2);
+          ctx.fill();
+          return laser;
+        })
+        .filter((laser) => {
+          // Remove lasers that are off-screen
+          return !(
+            laser.x < 0 ||
+            laser.x > CANVAS_WIDTH ||
+            laser.y < 0 ||
+            laser.y > CANVAS_HEIGHT
+          );
+        });
 
-        // Remove lasers that are off-screen
-        if (
-          laser.x < 0 ||
-          laser.x > CANVAS_WIDTH ||
-          laser.y < 0 ||
-          laser.y > CANVAS_HEIGHT
-        ) {
-          lasers.splice(i, 1);
-        }
-      }
+      // Debug rendering
+      ctx.fillStyle = "white";
+      ctx.font = "20px Arial";
+      ctx.fillText(
+        `Spaceship: (${Math.round(spaceship.x)}, ${Math.round(spaceship.y)})`,
+        10,
+        30
+      );
+      ctx.fillText(`Targets: ${targets.length}`, 10, 60);
+      ctx.fillText(`Lasers: ${lasers.length}`, 10, 90);
 
       checkCollisions();
 
       requestAnimationFrame(gameLoop);
     }
 
-    // Start the game loop once images are loaded
-    Promise.all([
-      new Promise((resolve) => (spaceshipImg.onload = resolve)),
-      new Promise((resolve) => (asteroidImg.onload = resolve)),
-      new Promise((resolve) => (bulletImg.onload = resolve)),
-      new Promise((resolve) => (ufoImg.onload = resolve)),
-      new Promise((resolve) => (backgroundImg.onload = resolve)),
-    ])
+    // Load images and start the game loop
+    Promise.all(
+      Object.entries(imageSources).map(([key, src]) => loadImage(key, src))
+    )
       .then(() => {
-        console.log("All images loaded");
+        console.log("All images loaded successfully");
         gameLoop();
       })
       .catch((error) => {
