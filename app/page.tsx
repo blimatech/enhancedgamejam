@@ -48,6 +48,11 @@ export default function EnhancedAsteroidGame() {
         "/images/background2.jpg",
         "/images/background3.jpg",
       ];
+      const starshipImages = [
+        "/images/spaceship1.png",
+        "/images/spaceship2.png",
+        "/images/spaceship3.png",
+      ];
 
       switch (type) {
         case "asteroid":
@@ -58,6 +63,8 @@ export default function EnhancedAsteroidGame() {
           return backgroundImages[
             Math.min(level - 1, backgroundImages.length - 1)
           ];
+        case "starship":
+          return starshipImages[Math.min(level - 1, starshipImages.length - 1)];
         default:
           return "";
       }
@@ -104,7 +111,9 @@ export default function EnhancedAsteroidGame() {
     // Pre-load images
     const images: { [key: string]: HTMLImageElement } = {};
     const imageSources = {
-      spaceship: "/images/Spaceship.png",
+      spaceship1: "/images/Spaceship1.png",
+      spaceship2: "/images/Spaceship2.png",
+      spaceship3: "/images/Spaceship3.png",
       asteroid1: "/images/Asteroid1.png",
       asteroid2: "/images/Asteroid2.png",
       asteroid3: "/images/Asteroid3.png",
@@ -198,10 +207,10 @@ export default function EnhancedAsteroidGame() {
       let updatedSpaceship = { ...spaceship };
 
       if (keys["ArrowLeft"]) {
-        updatedSpaceship = rotateSpaceship(updatedSpaceship, -0.1);
+        updatedSpaceship = rotateSpaceship(updatedSpaceship, -0.05); // Reduced from -0.1 to -0.05
       }
       if (keys["ArrowRight"]) {
-        updatedSpaceship = rotateSpaceship(updatedSpaceship, 0.1);
+        updatedSpaceship = rotateSpaceship(updatedSpaceship, 0.05); // Reduced from 0.1 to 0.05
       }
       if (keys["ArrowUp"]) {
         updatedSpaceship.dx += Math.cos(updatedSpaceship.angle) * 0.1;
@@ -283,13 +292,14 @@ export default function EnhancedAsteroidGame() {
       updateSpaceship();
 
       // Draw spaceship
-      if (images.spaceship) {
+      const spaceshipImage = images[`spaceship${level}`];
+      if (spaceshipImage) {
         const { spaceship } = gameStateRef.current;
         ctx.save();
         ctx.translate(spaceship.x, spaceship.y);
         ctx.rotate(spaceship.angle + Math.PI / 2);
         ctx.drawImage(
-          images.spaceship,
+          spaceshipImage,
           -spaceship.radius,
           -spaceship.radius,
           spaceship.radius * 2,
