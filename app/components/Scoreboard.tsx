@@ -2,15 +2,16 @@ import React from "react";
 
 type ScoreboardProps = {
   score: number;
+  timer: string;
+  level: number;
 };
 
-const Scoreboard: React.FC<ScoreboardProps> = ({ score }) => {
+const Scoreboard: React.FC<ScoreboardProps> = ({ score, timer, level }) => {
   return (
-    <div className="absolute left-4 top-4 rounded-lg bg-black bg-opacity-50 p-4">
-      <div className="flex flex-col items-center">
-        <h2 className="text-4xl font-bold text-white">Score</h2>
-        <p className="text-6xl font-bold text-yellow-400">{score}</p>
-      </div>
+    <div className="absolute top-0 left-0 p-4 text-white">
+      <p className="text-2xl">Score: {score}</p>
+      <p className="text-2xl">Time: {timer}</p>
+      <p className="text-2xl">Level: {level}</p>
     </div>
   );
 };

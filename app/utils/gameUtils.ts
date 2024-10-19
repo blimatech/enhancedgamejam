@@ -89,51 +89,51 @@ export const createLaser = (
   dy: Math.sin(angle) * speed,
 });
 
-export const createNewTarget = (
-  CANVAS_WIDTH: number,
-  CANVAS_HEIGHT: number,
+export function createNewTarget(
+  canvasWidth: number,
+  canvasHeight: number,
   safeDistance: number,
   spaceshipX: number,
-  spaceshipY: number
-): Target => {
-  let x = 0,
-    y = 0;
-  let isValidPosition = false;
+  spaceshipY: number,
+  level: number
+): Target {
+  let x, y;
+  do {
+    x = Math.random() * canvasWidth;
+    y = Math.random() * canvasHeight;
+  } while (Math.hypot(x - spaceshipX, y - spaceshipY) < safeDistance);
 
-  while (!isValidPosition) {
-    const side = Math.floor(Math.random() * 4);
-    switch (side) {
-      case 0: // top
-        x = Math.random() * CANVAS_WIDTH;
-        y = -50;
-        break;
-      case 1: // right
-        x = CANVAS_WIDTH + 50;
-        y = Math.random() * CANVAS_HEIGHT;
-        break;
-      case 2: // bottom
-        x = Math.random() * CANVAS_WIDTH;
-        y = CANVAS_HEIGHT + 50;
-        break;
-      case 3: // left
-        x = -50;
-        y = Math.random() * CANVAS_HEIGHT;
-        break;
-    }
+  const angle = Math.random() * Math.PI * 2;
+  const baseSpeed = 1 + level * 0.5;
+  const speed = baseSpeed + Math.random() * 2;
+  const type = Math.random() < 0.7 ? "asteroid" : "ufo";
 
-    // Check if the position is far enough from the spaceship
-    const distanceToSpaceship = Math.hypot(x - spaceshipX, y - spaceshipY);
-    if (distanceToSpaceship > safeDistance) {
-      isValidPosition = true;
-    }
-  }
+  return {
+    x,
+    y,
+    radius: type === "asteroid" ? Math.random() * 20 + 20 : 25,
+    dx: Math.cos(angle) * speed,
+    dy: Math.sin(angle) * speed,
+    speed,
+    type,
+    scale: 1,
+  };
+}
 
-  const scale = Math.random() < 0.5 ? 1.5 : 1;
-  const type = Math.random() < 0.5 ? "asteroid" : "ufo";
-  return createTarget(x, y, 2, type === "ufo" ? scale * 1.25 : scale, type);
+const width = typeof window !== "undefined" ? window.innerWidth : 800;
+const height = typeof window !== "undefined" ? window.innerHeight : 600;
+
+type Position = {
+  x: number;
+  y: number;
 };
 
-import { useEffect } from "react";
+export const generateRandomPosition = (): Position => {
+  return {
+    x: Math.random() * (width - 40), // Subtracting 40 to account for object size
+    y: Math.random() * (height - 40),
+  };
+};
 
 export const useGameLoop = (updateFunction: () => void) => {
   useEffect(() => {

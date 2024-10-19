@@ -10,7 +10,7 @@ import {
   moveGameObject,
   rotateSpaceship,
 } from "@/app/utils/gameUtils";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/app/components/ui/button";
 import Scoreboard from "@/app/components/Scoreboard";
@@ -27,6 +27,28 @@ export default function EnhancedAsteroidGame() {
   });
   const laserSoundRef = useRef<HTMLAudioElement | null>(null);
   const [isMuted, setIsMuted] = useState(false);
+  const [timer, setTimer] = useState(0);
+  const [level, setLevel] = useState(1);
+
+  // Create a memoized function to get the current image based on level
+  const getCurrentImage = useCallback(
+    (type: string) => {
+      const asteroidImages = [
+        "/images/Asteroid1.png",
+        "/images/Asteroid2.png",
+        "/images/Asteroid3.png",
+      ];
+      const ufoImages = [
+        "/images/UFO1.png",
+        "/images/UFO2.png",
+        "/images/UFO3.png",
+      ];
+
+      const imageSet = type === "asteroid" ? asteroidImages : ufoImages;
+      return imageSet[Math.min(level - 1, imageSet.length - 1)];
+    },
+    [level]
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -58,7 +80,8 @@ export default function EnhancedAsteroidGame() {
         CANVAS_HEIGHT,
         safeDistance,
         gameStateRef.current.spaceship.x,
-        gameStateRef.current.spaceship.y
+        gameStateRef.current.spaceship.y,
+        level
       );
       gameStateRef.current.targets.push(newTarget);
     }
@@ -67,8 +90,12 @@ export default function EnhancedAsteroidGame() {
     const images: { [key: string]: HTMLImageElement } = {};
     const imageSources = {
       spaceship: "/images/Spaceship.png",
-      asteroid: "/images/Asteroid.png",
-      ufo: "/images/UFO.png",
+      asteroid1: "/images/Asteroid1.png",
+      asteroid2: "/images/Asteroid2.png",
+      asteroid3: "/images/Asteroid3.png",
+      ufo1: "/images/UFO1.png",
+      ufo2: "/images/UFO2.png",
+      ufo3: "/images/UFO3.png",
       background: "/images/background.jpg",
     };
 
@@ -256,7 +283,9 @@ export default function EnhancedAsteroidGame() {
       gameStateRef.current.targets = gameStateRef.current.targets
         .map((target) => {
           target = moveGameObject(target) as Target;
-          const img = target.type === "asteroid" ? images.asteroid : images.ufo;
+          const imgKey =
+            target.type === "asteroid" ? `asteroid${level}` : `ufo${level}`;
+          const img = images[imgKey];
           if (img) {
             ctx.drawImage(
               img,
@@ -265,6 +294,12 @@ export default function EnhancedAsteroidGame() {
               target.radius * 2,
               target.radius * 2
             );
+          } else {
+            // Fallback to drawing a circle if image is not available
+            ctx.beginPath();
+            ctx.arc(target.x, target.y, target.radius, 0, Math.PI * 2);
+            ctx.fillStyle = target.type === "asteroid" ? "gray" : "green";
+            ctx.fill();
           }
           return target;
         })
@@ -285,7 +320,8 @@ export default function EnhancedAsteroidGame() {
           CANVAS_HEIGHT,
           safeDistance,
           gameStateRef.current.spaceship.x,
-          gameStateRef.current.spaceship.y
+          gameStateRef.current.spaceship.y,
+          level
         );
         gameStateRef.current.targets.push(newTarget);
       }
@@ -339,6 +375,16 @@ export default function EnhancedAsteroidGame() {
     }
     window.addEventListener("resize", handleResize);
 
+    // Add timer logic
+    const timerInterval = setInterval(() => {
+      setTimer((prevTimer) => prevTimer + 1);
+    }, 1000);
+
+    // Add level progression based on time
+    const levelInterval = setInterval(() => {
+      setLevel((prevLevel) => Math.min(prevLevel + 1, 3));
+    }, 10000); // Increase level every 10 seconds, up to level 3
+
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
@@ -347,29 +393,42 @@ export default function EnhancedAsteroidGame() {
         handleMuteToggle as EventListener
       );
       window.removeEventListener("resize", handleResize);
+      clearInterval(timerInterval);
+      clearInterval(levelInterval);
       if (laserSoundRef.current) {
         laserSoundRef.current.pause();
         laserSoundRef.current = null;
       }
     };
-  }, [gameOver, isMuted]);
+  }, [gameOver, isMuted, level, getCurrentImage]);
+
+  // Helper function to format time
+  const formatTime = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, "0")}:${remainingSeconds
+      .toString()
+      .padStart(2, "0")}`;
+  };
 
   return (
-    <div
-      key="game-container"
-      className="h-screen w-screen overflow-hidden bg-black"
-    >
+    <div className="relative h-screen w-screen overflow-hidden bg-black">
       <canvas ref={canvasRef} className="h-full w-full" />
       {!canvasRef.current && (
         <div className="text-white">Canvas not available</div>
       )}
-      <Scoreboard score={score} />
+      <div className="pointer-events-none absolute inset-0">
+        <Scoreboard score={score} timer={formatTime(timer)} level={level} />
+      </div>
       {gameOver && (
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75">
           <div className="text-center">
             <h2 className="mb-4 text-6xl font-bold text-white">Game Over</h2>
             <p className="mb-4 text-4xl text-yellow-400">
               Final Score: {score}
+            </p>
+            <p className="mb-4 text-4xl text-yellow-400">
+              Time: {formatTime(timer)}
             </p>
             <Button
               onClick={() => window.location.reload()}

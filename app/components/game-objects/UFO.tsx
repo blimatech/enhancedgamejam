@@ -1,61 +1,17 @@
-import React, { useEffect, useRef } from "react";
-
-import Image from "next/image";
-import ufoImageSrc from "@/assets/images/UFO.png";
+import React from "react";
 
 type UFOProps = {
-  size?: "small" | "medium" | "large";
-  speed?: "slow" | "medium" | "fast";
-  playSound?: boolean;
-  soundSrc?: string;
-  style?: React.CSSProperties;
+  x: number;
+  y: number;
 };
 
-const sizeMap = {
-  small: 35,
-  medium: 55,
-  large: 75,
-};
-
-const speedMap = {
-  slow: 1,
-  medium: 2,
-  fast: 3,
-};
-
-export const UFO: React.FC<UFOProps> = ({
-  size = "medium",
-  speed = "medium",
-  playSound = false,
-  soundSrc = "/sounds/ufo.mp3",
-  style,
-}) => {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    if (playSound) {
-      audioRef.current = new Audio(soundSrc);
-      audioRef.current.play();
-    }
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, [playSound, soundSrc]);
-
+const UFO: React.FC<UFOProps> = ({ x, y }) => {
   return (
-    <div style={style}>
-      <Image
-        src={ufoImageSrc}
-        alt="UFO"
-        width={sizeMap[size]}
-        height={sizeMap[size]}
-        style={{
-          animation: `hover ${30 / speedMap[speed]}s ease-in-out infinite`,
-        }}
-      />
-    </div>
+    <div
+      className="absolute w-10 h-10 bg-purple-500 rounded-full"
+      style={{ left: x, top: y }}
+    />
   );
 };
+
+export default UFO;
