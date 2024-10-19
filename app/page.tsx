@@ -136,6 +136,8 @@ export default function EnhancedAsteroidGame() {
 
     function checkCollisions() {
       const { spaceship, targets, lasers } = gameStateRef.current;
+      const newTargets: Target[] = [];
+
       // Check laser-target collisions
       for (let i = lasers.length - 1; i >= 0; i--) {
         for (let j = targets.length - 1; j >= 0; j--) {
@@ -145,12 +147,29 @@ export default function EnhancedAsteroidGame() {
           ) {
             // Collision detected
             lasers.splice(i, 1);
+
+            if (targets[j].type === "asteroid" && targets[j].radius > 15) {
+              // Split asteroid into two smaller ones
+              for (let k = 0; k < 2; k++) {
+                const newAsteroid = {
+                  ...targets[j],
+                  radius: targets[j].radius / 2,
+                  dx: Math.random() * 2 - 1,
+                  dy: Math.random() * 2 - 1,
+                };
+                newTargets.push(newAsteroid);
+              }
+            }
+
             targets.splice(j, 1);
             setScore((prevScore) => prevScore + 10);
             break;
           }
         }
       }
+
+      // Add new smaller asteroids
+      gameStateRef.current.targets = [...targets, ...newTargets];
 
       // Check spaceship-target collisions
       for (let i = targets.length - 1; i >= 0; i--) {
