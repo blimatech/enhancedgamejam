@@ -5,10 +5,10 @@ import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Scoreboard from "@/components/Scoreboard";
-import asteroidImageSrc from "@/assets/images/Asteroid.png";
-import bulletImageSrc from "@/assets/images/Bullet.png";
-import spaceshipImageSrc from "@/assets/images/Spaceship.png";
-import ufoImageSrc from "@/assets/images/UFO.png";
+import asteroidImageSrc from "/assets/images/Asteroid.png";
+import bulletImageSrc from "/assets/images/Bullet.png";
+import spaceshipImageSrc from "/assets/images/Spaceship.png";
+import ufoImageSrc from "/assets/images/UFO.png";
 
 class GameObject {
   x: number;
@@ -123,6 +123,13 @@ export default function EnhancedAsteroidGame() {
     bulletImg.src = bulletImageSrc;
     const ufoImg = new window.Image();
     ufoImg.src = ufoImageSrc;
+
+    console.log("Image sources:", {
+      spaceship: spaceshipImageSrc,
+      asteroid: asteroidImageSrc,
+      bullet: bulletImageSrc,
+      ufo: ufoImageSrc,
+    });
 
     // Keyboard state
     const keys: { [key: string]: boolean } = {};
@@ -244,6 +251,8 @@ export default function EnhancedAsteroidGame() {
     function gameLoop() {
       if (!ctx || gameOver) return;
 
+      console.log("Game loop running");
+
       ctx.fillStyle = "black";
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
@@ -267,14 +276,12 @@ export default function EnhancedAsteroidGame() {
         const target = targets[i];
         target.move();
         const img = target.type === "asteroid" ? asteroidImg : ufoImg;
-        const drawRadius =
-          target.type === "ufo" ? target.radius * 1.25 : target.radius;
         ctx.drawImage(
           img,
-          target.x - drawRadius,
-          target.y - drawRadius,
-          drawRadius * 2,
-          drawRadius * 2
+          target.x - target.radius,
+          target.y - target.radius,
+          target.radius * 2,
+          target.radius * 2
         );
 
         // Remove targets that are off-screen
@@ -298,7 +305,7 @@ export default function EnhancedAsteroidGame() {
       for (let i = lasers.length - 1; i >= 0; i--) {
         const laser = lasers[i];
         laser.move();
-        ctx.fillStyle = "yellow"; // Changed from using an image to a simple yellow circle
+        ctx.fillStyle = "yellow";
         ctx.beginPath();
         ctx.arc(laser.x, laser.y, laser.radius, 0, Math.PI * 2);
         ctx.fill();
@@ -325,9 +332,14 @@ export default function EnhancedAsteroidGame() {
       new Promise((resolve) => (asteroidImg.onload = resolve)),
       new Promise((resolve) => (bulletImg.onload = resolve)),
       new Promise((resolve) => (ufoImg.onload = resolve)),
-    ]).then(() => {
-      gameLoop();
-    });
+    ])
+      .then(() => {
+        console.log("All images loaded");
+        gameLoop();
+      })
+      .catch((error) => {
+        console.error("Error loading images:", error);
+      });
 
     // Add window resize event listener
     function handleResize() {
@@ -346,8 +358,14 @@ export default function EnhancedAsteroidGame() {
   }, []);
 
   return (
-    <div className="h-screen w-screen overflow-hidden">
+    <div
+      key="game-container"
+      className="h-screen w-screen overflow-hidden bg-black"
+    >
       <canvas ref={canvasRef} className="h-full w-full" />
+      {!canvasRef.current && (
+        <div className="text-white">Canvas not available</div>
+      )}
       <Scoreboard score={score} />
       {gameOver && (
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75">
