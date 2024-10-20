@@ -10,7 +10,7 @@ import {
   moveGameObject,
   rotateSpaceship,
 } from "@/app/utils/gameUtils";
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/app/components/ui/button";
 import Scoreboard from "@/app/components/Scoreboard";
@@ -38,6 +38,7 @@ export default function EnhancedAsteroidGame() {
   const customShootSoundRef = useRef<HTMLAudioElement | null>(null);
   const [backgroundMusic, setBackgroundMusic] =
     useState<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   // Create a memoized function to get the current image based on level
   const getCurrentImage = useCallback(
@@ -105,8 +106,6 @@ export default function EnhancedAsteroidGame() {
       console.error("Canvas context not available");
       return;
     }
-
-    console.log("Canvas and context are available");
 
     // Set canvas size to full screen
     canvas.width = window.innerWidth;
@@ -241,20 +240,16 @@ export default function EnhancedAsteroidGame() {
       );
       gameStateRef.current.lasers.push(laser);
 
-      if (customShootSoundRef.current && !isMuted) {
-        customShootSoundRef.current.currentTime = 0;
-        customShootSoundRef.current
-          .play()
-          .catch((error) =>
-            console.error("Error playing custom shoot sound:", error)
-          );
+      if (customShootSound && !isMuted && audioContextRef.current) {
+        const source = audioContextRef.current.createBufferSource();
+        source.buffer = customShootSound;
+        source.connect(audioContextRef.current.destination);
+        source.start();
       } else if (laserSoundRef.current && !isMuted) {
         laserSoundRef.current.currentTime = 0;
         laserSoundRef.current
           .play()
-          .catch((error) =>
-            console.error("Error playing default laser sound:", error)
-          );
+          .catch((error) => console.error("Error playing laser sound:", error));
       }
     }
 
@@ -345,7 +340,6 @@ export default function EnhancedAsteroidGame() {
     }
 
     function gameLoop() {
-      console.log("Game loop running");
       if (!ctx || gameOver) return;
 
       // Clear the canvas before redrawing
@@ -510,19 +504,56 @@ export default function EnhancedAsteroidGame() {
     // Add level progression based on time
     const levelInterval = setInterval(() => {
       setLevel((prevLevel) => Math.min(prevLevel + 1, 4)); // Increase max level to 4
-    }, 1000); // Increase level every 5 seconds, up to level 4
+    }, 60000); // Increase level every 60 seconds, up to level 4
 
     // Initialize background music
-    const bgMusic = new Audio("/sounds/BackgroundMusic.mp3"); // Corrected file name
+    const bgMusic = new Audio("/sounds/BackgroundMusic.mp3");
     bgMusic.loop = true;
     setBackgroundMusic(bgMusic);
-    if (!isMuted) {
-      bgMusic
-        .play()
-        .catch((error) =>
-          console.error("Error playing background music:", error)
-        );
+
+    // Check for custom shoot sound in localStorage
+    const storedCustomSound = localStorage.getItem("customShootSound");
+    if (storedCustomSound) {
+      try {
+        const base64Data = JSON.parse(storedCustomSound);
+        fetch(`data:audio/mp3;base64,${base64Data}`)
+          .then((res) => res.arrayBuffer())
+          .then((arrayBuffer) => {
+            if (audioContextRef.current) {
+              return audioContextRef.current.decodeAudioData(arrayBuffer);
+            }
+          })
+          .then((audioBuffer) => {
+            if (audioBuffer) {
+              setCustomShootSound(audioBuffer);
+            }
+          })
+          .catch((error) => {
+            console.error("Error decoding stored audio:", error);
+            localStorage.removeItem("customShootSound");
+            fetchAIShootingSound();
+          });
+      } catch (error) {
+        console.error("Error parsing stored audio data:", error);
+        localStorage.removeItem("customShootSound");
+        fetchAIShootingSound();
+      }
+    } else {
+      fetchAIShootingSound();
     }
+
+    // Add event listener for user interaction
+    const handleUserInteraction = () => {
+      if (bgMusic && !isMuted) {
+        bgMusic
+          .play()
+          .catch((error) =>
+            console.error("Error playing background music:", error)
+          );
+      }
+      document.removeEventListener("click", handleUserInteraction);
+    };
+    document.addEventListener("click", handleUserInteraction);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
@@ -542,6 +573,10 @@ export default function EnhancedAsteroidGame() {
         backgroundMusic.pause();
         backgroundMusic.currentTime = 0;
       }
+      // Initialize AudioContext
+      audioContextRef.current = new (window.AudioContext ||
+        (window as any).webkitAudioContext)();
+      document.removeEventListener("click", handleUserInteraction);
     };
   }, [gameOver, isMuted, level, getCurrentImage]);
 
@@ -603,28 +638,26 @@ export default function EnhancedAsteroidGame() {
 
       if (response.ok) {
         const audioArrayBuffer = await response.arrayBuffer();
-        const audioContext = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
-        const audioBuffer = await audioContext.decodeAudioData(
-          audioArrayBuffer
-        );
+        if (audioContextRef.current) {
+          const audioBuffer = await audioContextRef.current.decodeAudioData(
+            audioArrayBuffer
+          );
+          setCustomShootSound(audioBuffer);
 
-        // Create a new audio element with the custom sound
-        const audio = new Audio();
-        const source = audioContext.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(audioContext.destination);
+          // Store in local storage as base64
+          const uint8Array = new Uint8Array(audioArrayBuffer);
+          const base64Data = arrayBufferToBase64(uint8Array);
+          localStorage.setItem("customShootSound", JSON.stringify(base64Data));
 
-        customShootSoundRef.current = {
-          play: () => {
-            const newSource = audioContext.createBufferSource();
-            newSource.buffer = audioBuffer;
-            newSource.connect(audioContext.destination);
-            newSource.start();
-          },
-        };
+          // Remove background music
+          if (backgroundMusic) {
+            backgroundMusic.pause();
+            backgroundMusic.currentTime = 0;
+            setBackgroundMusic(null);
+          }
 
-        console.log("Custom shoot sound set successfully");
+          console.log("Custom shoot sound set successfully");
+        }
       } else {
         const errorText = await response.text();
         console.error(
@@ -636,6 +669,46 @@ export default function EnhancedAsteroidGame() {
     } catch (error) {
       console.error("Error sending audio to server:", error);
     }
+  };
+
+  const fetchAIShootingSound = () => {
+    fetch("/audio/sounds/ai_shooting_sound.mp3")
+      .then((response) => {
+        if (response.ok) {
+          return response.arrayBuffer();
+        }
+        throw new Error("Custom sound file not found");
+      })
+      .then((arrayBuffer) => {
+        if (audioContextRef.current) {
+          return audioContextRef.current.decodeAudioData(arrayBuffer);
+        }
+      })
+      .then((audioBuffer) => {
+        if (audioBuffer) {
+          setCustomShootSound(audioBuffer);
+          // Store in localStorage as base64
+          const uint8Array = new Uint8Array(
+            audioBuffer.getChannelData(0).buffer
+          );
+          const base64Data = arrayBufferToBase64(uint8Array);
+          localStorage.setItem("customShootSound", JSON.stringify(base64Data));
+        }
+      })
+      .catch((error) => {
+        console.error("Error loading custom sound:", error);
+      });
+  };
+
+  // Helper function to convert ArrayBuffer to base64
+  const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+    let binary = "";
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
   };
 
   return (
@@ -666,13 +739,25 @@ export default function EnhancedAsteroidGame() {
           </div>
         </div>
       )}
-      <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2">
+      <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 space-x-2">
         <Button
           onClick={isRecording ? () => {} : startRecording}
           className={`px-4 py-2 ${isRecording ? "bg-red-500" : "bg-blue-500"}`}
           disabled={isRecording}
         >
           {isRecording ? "Recording... (3s)" : "Create Sound from Voice (3s)"}
+        </Button>
+        <Button
+          onClick={() => {
+            setCustomShootSound(null);
+            localStorage.removeItem("customShootSound");
+            if (laserSoundRef.current) {
+              laserSoundRef.current = new Audio("/sounds/LaserShootMusic.mp3");
+            }
+          }}
+          className="bg-yellow-500 px-4 py-2"
+        >
+          Reset to Default Sound
         </Button>
       </div>
     </div>

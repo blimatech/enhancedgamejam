@@ -38,7 +38,9 @@ next-env.d.ts
 # python
 .venv
 
-#  Temp folder
+#  My Folders
 /temp
 public/generated_files
 .env
+public/audio/sounds
+

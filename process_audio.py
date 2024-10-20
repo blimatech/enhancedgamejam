@@ -37,7 +37,7 @@ elevenlabs_client = ElevenLabs(api_key=elevenlabs_api_key)
 
 logger.info("Clients initialized successfully")
 
-def generate_sound_effect(text, duration_seconds=2.0, prompt_influence=0.3):
+def generate_sound_effect(text="pew pew", duration_seconds=2.0, prompt_influence=0.3):
     logger.info(f"Generating sound effect for: '{text}'")
     start_time = time.time()
 
@@ -47,19 +47,19 @@ def generate_sound_effect(text, duration_seconds=2.0, prompt_influence=0.3):
         prompt_influence=prompt_influence
     )
 
-    # Use the generated_files folder
-    generated_files_dir = os.path.join(os.path.dirname(__file__), 'public', 'generated_files', 'audio', 'output')
-    os.makedirs(generated_files_dir, exist_ok=True)
-    temp_file_path = os.path.join(generated_files_dir, f'temp_sound_effect_{int(time.time())}.mp3')
+    # Use the public/audio/sounds folder
+    output_dir = os.path.join(os.path.dirname(__file__), 'public', 'audio', 'sounds')
+    os.makedirs(output_dir, exist_ok=True)
+    output_file_path = os.path.join(output_dir, 'ai_shooting_sound.mp3')
 
-    with open(temp_file_path, 'wb') as temp_file:
+    with open(output_file_path, 'wb') as output_file:
         for chunk in result:
-            temp_file.write(chunk)
+            output_file.write(chunk)
 
     total_time = (time.time() - start_time) * 1000
     logger.info(f"Sound effect generated in {total_time:.2f} ms")
 
-    return temp_file_path
+    return output_file_path
 
 def process_audio(input_file):
     try:
@@ -90,6 +90,7 @@ def process_audio(input_file):
 
 if __name__ == '__main__':
     logger.info("Starting __main__ from process_audio.py")
+    
     if len(sys.argv) != 2:
         logger.error("Incorrect number of arguments")
         print("Usage: python process_audio.py <input_file>")
@@ -100,13 +101,7 @@ if __name__ == '__main__':
 
     sound_effect_file = process_audio(input_file)
     if sound_effect_file:
-        try:
-            with open(sound_effect_file, 'rb') as f:
-                sys.stdout.buffer.write(f.read())
-            logger.info("Processing completed successfully")
-        except Exception as e:
-            logger.error(f"Error reading sound effect file: {str(e)}")
-            sys.exit(1)
+        logger.info(f"Sound effect generated: {sound_effect_file}")
     else:
-        logger.error("Processing failed")
+        logger.error("Failed to generate sound effect")
         sys.exit(1)

@@ -14,11 +14,9 @@ const execAsync = promisify(exec);
 // Function to get the path to the Python interpreter in the virtual environment
 function getPythonPath() {
   const venvPath = path.join(process.cwd(), ".venv");
-  if (process.platform === "win32") {
-    return path.join(venvPath, "Scripts", "python.exe");
-  } else {
-    return path.join(venvPath, "bin", "python");
-  }
+  return process.platform === "win32"
+    ? path.join(venvPath, "Scripts", "python.exe")
+    : path.join(venvPath, "bin", "python");
 }
 
 export async function POST(req: NextRequest) {
@@ -34,16 +32,9 @@ export async function POST(req: NextRequest) {
     }
 
     const audioBuffer = await audioFile.arrayBuffer();
-    const audioDir = path.join(
-      process.cwd(),
-      "public",
-      "generated_files",
-      "audio",
-      "input"
-    );
-    fs.mkdirSync(audioDir, { recursive: true });
-
-    const tempInputPath = path.join(audioDir, `input_${Date.now()}.webm`);
+    const tempDir = path.join(process.cwd(), "temp");
+    fs.mkdirSync(tempDir, { recursive: true });
+    const tempInputPath = path.join(tempDir, `input_${Date.now()}.wav`);
     fs.writeFileSync(tempInputPath, Buffer.from(audioBuffer));
 
     const pythonPath = getPythonPath();
@@ -61,40 +52,28 @@ export async function POST(req: NextRequest) {
           GROQ_API_KEY: groq_api_key,
           ELEVENLABS_API_KEY: elevenlabs_api_key,
         },
-        maxBuffer: 1024 * 1024 * 10, // 10 MB buffer
-        encoding: "buffer", // This ensures stdout is a Buffer
       }
     );
 
-    if (stderr && stderr.length > 0) {
-      console.error("Python script error:", stderr.toString());
-      return NextResponse.json(
-        { error: "Failed to process audio", details: stderr.toString() },
-        { status: 500 }
-      );
+    // Log the Python script output
+    console.log("Python script stdout:", stdout);
+    if (stderr) {
+      console.error("Python script stderr:", stderr);
     }
 
     // Clean up the temporary input file
     fs.unlinkSync(tempInputPath);
 
-    // Find the generated audio file
-    const generatedFiles = fs.readdirSync(audioDir);
-    const generatedAudioFile = generatedFiles.find((file) =>
-      file.startsWith("temp_sound_effect_")
-    );
+    const audioDir = path.join(process.cwd(), "public", "audio", "sounds");
+    const audioFilePath = path.join(audioDir, "ai_shooting_sound.mp3");
 
-    if (generatedAudioFile) {
-      const audioFilePath = path.join(audioDir, generatedAudioFile);
+    if (fs.existsSync(audioFilePath)) {
       const audioBuffer = fs.readFileSync(audioFilePath);
-
-      // Clean up the generated audio file
-      fs.unlinkSync(audioFilePath);
-
       return new NextResponse(audioBuffer, {
         status: 200,
         headers: {
           "Content-Type": "audio/mpeg",
-          "Content-Disposition": `attachment; filename="${generatedAudioFile}"`,
+          "Content-Disposition": "attachment; filename=ai_shooting_sound.mp3",
         },
       });
     } else {
