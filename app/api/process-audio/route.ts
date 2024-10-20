@@ -38,7 +38,8 @@ export async function POST(req: NextRequest) {
       process.cwd(),
       "public",
       "generated_files",
-      "audio"
+      "audio",
+      "input"
     );
     fs.mkdirSync(audioDir, { recursive: true });
 
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    if (stderr) {
+    if (stderr && stderr.length > 0) {
       console.error("Python script error:", stderr.toString());
       return NextResponse.json(
         { error: "Failed to process audio", details: stderr.toString() },
@@ -76,14 +77,33 @@ export async function POST(req: NextRequest) {
     // Clean up the temporary input file
     fs.unlinkSync(tempInputPath);
 
-    // Return the audio data
-    return new NextResponse(stdout, {
-      status: 200,
-      headers: {
-        "Content-Type": "audio/mpeg",
-        "Content-Disposition": `attachment; filename="processed_${Date.now()}.mp3"`,
-      },
-    });
+    // Find the generated audio file
+    const generatedFiles = fs.readdirSync(audioDir);
+    const generatedAudioFile = generatedFiles.find((file) =>
+      file.startsWith("temp_sound_effect_")
+    );
+
+    if (generatedAudioFile) {
+      const audioFilePath = path.join(audioDir, generatedAudioFile);
+      const audioBuffer = fs.readFileSync(audioFilePath);
+
+      // Clean up the generated audio file
+      fs.unlinkSync(audioFilePath);
+
+      return new NextResponse(audioBuffer, {
+        status: 200,
+        headers: {
+          "Content-Type": "audio/mpeg",
+          "Content-Disposition": `attachment; filename="${generatedAudioFile}"`,
+        },
+      });
+    } else {
+      console.error("Generated audio file not found");
+      return NextResponse.json(
+        { error: "Generated audio file not found" },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error("Error processing audio:", error);
     return NextResponse.json(
